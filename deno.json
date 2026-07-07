@@ -1,0 +1,13 @@
+{
+    "name": "@jabonchan/sweet-dx",
+    "version": "0.0.1",
+    "license": "GPL-3.0-or-later",
+    "exports": "./mod.ts",
+    "imports": {},
+    "nodeModulesDir": "auto",
+    "fmt": {
+        "exclude": [],
+        "indentWidth": 4,
+        "useTabs": false
+    }
+}

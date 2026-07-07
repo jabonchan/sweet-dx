@@ -1,0 +1,1 @@
+export * as lz4js from "npm:lz4js@0.2.0";
