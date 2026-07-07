@@ -23,6 +23,7 @@ SweetDX isn't just a straight port — a few things here you won't find in eithe
 ### ⚠️ Disclaimer
 
 - SweetDX is a **development tool**. It doesn't contain or distribute any game code, assets, or executables from Nintendo — you'll need to supply your own **legally obtained** copy of the game (`main`, etc.).
+  
 - Every third-party dependency used is credited in this README. If you're a rights holder and think something here is missing or wrong, please open an issue and I'll sort it out.
 
 ### 📋 Requirements
