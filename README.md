@@ -1,6 +1,6 @@
-<h1 style="text-align: center; margin: 0em;"> ✨ SweetDX 🧁 </h1>
-<h3 style="text-align: center; margin: 0em;"><i>A sweeter way to mod Deluxe</i></h3>
-<hr /><br /><br />
+# ✨ SweetDX 🧁
+### <i>A sweeter way to mod Deluxe</i>
+<hr />
 
 ### What is this?
 
