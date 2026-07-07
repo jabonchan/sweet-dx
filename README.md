@@ -8,6 +8,8 @@ SweetDX is a Deno/TypeScript toolchain for modding **New Super Mario Bros. U Del
 
 Before anything else: a good chunk of SweetDX's code and assets came straight from [LibHakkun](https://github.com/fruityloops1/LibHakkun) and [codedx](https://github.com/RicBent/codedx). Huge thanks to both — this project simply wouldn't exist without the groundwork they laid, so it felt right to say that up front rather than bury it at the bottom. The rest of the third-party dependencies are credited further down.
 
+SweetDX was built for the development of Steam's Super Mario Bros. Deluxe, which is why it is optimized for New Super Mario Bros. U Deluxe. [Join the mod's Discord server](https://discord.gg/aXcz6wbKWk).
+
 ### What makes it different?
 
 SweetDX isn't just a straight port — a few things here you won't find in either LibHakkun or codedx:
