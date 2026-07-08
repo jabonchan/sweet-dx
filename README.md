@@ -157,7 +157,7 @@ Field reference:
 |---|---|---|---|
 | `hook` | `type`, `address`, `symbol` | `trampoline` | `symbol` (and `trampoline`, if given) can be a plain mangled name **or** a full C++ signature — `revoltijo` mangles it for you if it isn't mangled already. Leave out `trampoline` and it'll just branch to `symbol` without preserving the original instruction. |
 | `call` | `type`, `address`, `symbol` | — | Same as `hook`, but has no `trampoline` field and patches a `bl` (branch-with-link) instead of a `b`, so the original code resumes right after the call returns. |
-| `instr` | `type`, `address`, `instruction` | — | `instruction` is a single line of real ARM assembly (e.g. `nop`, `mov r0, #1`), assembled through `clang` and inserted as an IPS patch. |
+| `instr` | `type`, `address`, `instruction` | — | `instruction` is a single line of real ARM assembly (e.g. `nop`, `mov r0, #1`), assembled through `clang++` and inserted as an IPS patch. |
 | `data` | `type`, `address`, `data` | — | `data` is a sequence of hex byte pairs, space-separated, with or without a `0x` prefix. |
 
 `symbol` and `trampoline` also accept two directive prefixes for cases the auto-mangler can't (or shouldn't) handle on its own:
