@@ -148,7 +148,7 @@ Each line follows `name = 0xADDRESS;`. At build time, every `.sym` file turns in
 
 ### 🙏 Credits & third-party dependencies
 
-SweetDX stands on the shoulders of the projects below. If any of these are useful to you, go star them:
+SweetDX works thanks to the projects listed below. If you want to help the creators, go star their projects:
 
 | Dependency | License | Source | Notes |
 |---|---|---|---|
