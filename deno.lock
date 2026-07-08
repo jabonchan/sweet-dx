@@ -1,0 +1,53 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@jabonchan/deeplevel@0.0.2": "0.0.2",
+    "jsr:@jabonchan/way-ts@0.0.4": "0.0.4",
+    "npm:fast-sha256@1.3.0": "1.3.0",
+    "npm:lz4js@0.2.0": "0.2.0"
+  },
+  "jsr": {
+    "@jabonchan/deeplevel@0.0.2": {
+      "integrity": "543458208069f7a183977b1a3fc7c0c3507da5c605683ab19bc2826e8ac98def"
+    },
+    "@jabonchan/way-ts@0.0.4": {
+      "integrity": "f78ed75797b3bcfe686b9f2fff6740f35fe8ae7f5b271820eb96173396a387a4"
+    }
+  },
+  "npm": {
+    "fast-sha256@1.3.0": {
+      "integrity": "sha512-n11RGP/lrWEFI/bWdygLxhI+pVeo1ZYIVwvvPkW7azl/rOy+F3HYRZ2K5zeE9mmkhQppyv9sQFx0JM9UabnpPQ=="
+    },
+    "lz4js@0.2.0": {
+      "integrity": "sha512-gY2Ia9Lm7Ep8qMiuGRhvUq0Q7qUereeldZPP1PMEJxPtEWHJLqw9pgX68oHajBH0nzJK4MaZEA/YNV3jT8u8Bg=="
+    }
+  },
+  "redirects": {
+    "https://esm.sh/gh/jeff-hykin/common_tree_sitter_languages@1.3.2.0/main/cpp.js": "https://esm.sh/gh/jeff-hykin/common_tree_sitter_languages@c37fc96/main/cpp"
+  },
+  "remote": {
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/extended/base_node.js": "1ac4297d5a92b26c54b7aa15d11cb61813e929d706c58216be706aa2581fc7c7",
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/extended/node_extended.js": "db2b893d2fa546bb1e5a38e9b4fbeac4c03e999a1ea3c138e49a62fd13f63d8b",
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/extended/parser.js": "e20c714903947a30ab86dd30b077f79753c6b2f386ba2f268a3ef26617d9b3ae",
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/extended/soft_node.js": "080b72f72912dd1eebe168450e17e27feeb830f194d3aaf2f9d3363cf80e5175",
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/extended/soft_text_node.js": "8c8110c470a45e61d287d506abf0033e6d8ae8eb27e2f5c6802a0db5e3bcc723",
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/extended/whitespace_node.js": "fc0e133c006905172d73a674358cf8b6db2ed03f46569393eab42c9eea38836f",
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/extras/misc.js": "2e87623c7673c4dd4ab9e255d1f9438a0b11b3811df8f567839b6fc9d4159a6c",
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/main.js": "d57df741ebdf398ff899b0cb4b8cd64b5692a34fdb533cce05acd17412038e34",
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/tree_sitter/bindings.js": "037b934b7ed98a50380f544b800a96b5df8e8141e86775a2b6b1e7bf465b4f61",
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/tree_sitter/constants.js": "250d9691087afdefd4b9817b799c8d644513872eab5aeb1c758e2e2aed69d032",
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/tree_sitter/language.js": "fecf81e287d66a38e05499dffd3f0404f292071d3905de29cce38c13e21ce97a",
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/tree_sitter/lookahead_iterator.js": "118a03413bf90664881d9e4b48650b78dec83a5f46e1bc828a9d35622ecb6657",
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/tree_sitter/marshal.js": "77f89ce492117cc222ff5ebb3f7edd17b8c1575638809141c8e8f699cea10a41",
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/tree_sitter/node.js": "a6ec64a651fe33c348a20c2bde09080c13be8f082a6c33de883dff710755b387",
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/tree_sitter/parser.js": "70bb5a5a52bfa28e2a66bb1dea91738a22a982ebac0204d9a670a11b0d601a34",
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/tree_sitter/query.js": "c00c4bba6ad3026ea8e204500bd97b8640281697cec4354628ba831e7896d454",
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/tree_sitter/tree.js": "914ee29a67af544915cb65afba7faf26f1611416026d642d3a08d46f27899b02",
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/tree_sitter/tree_cursor.js": "a63a92f4a202054d3664c43c9aeffe209221b86cf3a82ebfc14ff6a9a0608907",
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/tree_sitter_wasm.js": "abeae162f42d86d12d51f04225b1546c9e42df738f1c531f9e0712404f61b97e",
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/wasm_loader.js": "64b7a707038e6dcf14fd132023889e2e94370a70fb43674bd9782062b14f81c9",
+    "https://deno.land/x/deno_tree_sitter@1.0.1.2/main/wasm_loader_with_defaults.js": "b5448c4368fbdacde938b87dbe9b92ff595d0f2eaa04294a9e6e33be9ccea1b4",
+    "https://esm.sh/gh/jeff-hykin/common_tree_sitter_languages@c37fc96/denonext/main/cpp.mjs": "aa848b7a21fcf62d51dab5647d83181e7955c0af2b7c39118662921b698dd0de",
+    "https://esm.sh/gh/jeff-hykin/common_tree_sitter_languages@c37fc96/main/cpp": "61f627dc964c4445dfa9bd746446fad602ffa4297f6e7821cb31a6dbcafd19d0"
+  }
+}

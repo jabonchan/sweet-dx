@@ -73,7 +73,7 @@ export function compile() {
         log.info("Listing source files...");
 
         const files = modules.archivo.listFiles("./source");
-        const code = files.filter(file => file.entry.extension === ".cpp");
+        const code = files.filter(file => file.entry.extension === ".cpp" || file.entry.extension === ".s" || file.entry.extension === ".c");
         const main = new modules.filetendo.ParsedNSO("./source/nso/main");
 
         const symbols = files.filter(file => file.entry.extension === ".sym").map(symPath => {
@@ -82,6 +82,7 @@ export function compile() {
             const sym = new modules.wisdom.Sym(symPath.entry.path.normal);
 
             log.info(`Loaded ${sym.symbols.length} symbol(s) from "${symPath.entry.path.normal}".`);
+            log.info(sym.symbols.map(sym => sym.name).join(", "));
 
             return sym;
         });
@@ -92,6 +93,7 @@ export function compile() {
             const hks = new modules.wisdom.Hks(hookPath.entry.path.normal);
 
             log.info(`Loaded ${hks.hooks.length} hook definition(s) from "${hookPath.entry.path.normal}": ${hks.hooks.map(hook => hook.name).join(", ") || "(none)"}.`);
+            log.info(JSON.stringify(hks.hooks, null, 4));
 
             return hks.hooks;
         }).flat();
@@ -165,6 +167,9 @@ ${hook.trampoline}:
 
                         break;
                     }
+                    case "call": {
+                        break;
+                    }
                     case "instr": {
                         addPatch({
                             address: hook.address + constants.NSO_HEADER_SIZE,
@@ -197,7 +202,7 @@ ${hook.trampoline}:
 
             log.info("Generated linker scripts for symbol file(s).");
             log.info("Invoking clang++...");
-            log.info("\n");
+            log.info("");
 
             const compileResult = modules.child_process.spawnSync("clang++", (argv = [
                 "--target=armv7l-none-eabihf",
@@ -217,7 +222,7 @@ ${hook.trampoline}:
 
             logProcessOutput(log, "clang++", compileResult, argv);
             checkSpawnResult("clang++", compileResult);
-            log.info("\n");
+            log.info("");
 
             const objs = modules.archivo.listFiles(dirpath)
                             .filter(({ entry }) => entry.extension === ".o")
@@ -229,7 +234,7 @@ ${hook.trampoline}:
 
             log.info(`Compiled ${objs.length} object file(s).`);
             log.info("Invoking arm-none-eabi-ld...");
-            log.info("\n");
+            log.info("");
 
             const linkResult = modules.child_process.spawnSync("arm-none-eabi-ld", (argv = [
                 "-pie",
@@ -242,7 +247,7 @@ ${hook.trampoline}:
 
             logProcessOutput(log, "arm-none-eabi-ld", linkResult, argv);
             checkSpawnResult("arm-none-eabi-ld", linkResult);
-            log.info("\n");
+            log.info("");
 
             log.info(`Linked ELF at "${elfpath}".`);
 
@@ -275,22 +280,24 @@ ${hook.trampoline}:
             nso.setProperty("embeddedOffset", 0);
             nso.setProperty("embeddedSize", 0);
 
-            const trampolines = hooks.filter(hook => hook.type === "hook").map(hook => {
+            const trampolines = hooks.filter(hook => hook.type === "hook" || hook.type === "call").map(hook => {
                 const hookSymbol = elf.findSymbol(hook.symbol);
-                const trampolineSymbol = hook.trampoline ? elf.findSymbol(hook.trampoline) : null;
+                const trampolineName = hook.type === "hook" ? hook.trampoline : undefined;
+                const trampolineSymbol = trampolineName ? elf.findSymbol(trampolineName) : null;
 
                 if (!hookSymbol) throw new Error("Could not find hook symbol: " + hook.symbol);
-                if (trampolineSymbol === undefined) throw new Error("Could not find trampoline symbol: " + hook.trampoline);
+                if (trampolineSymbol === undefined) throw new Error("Could not find trampoline symbol: " + trampolineName);
 
-                log.info(`Resolved hook symbol "${hook.symbol}" (${hook.name}) at ${modules.utils.hexify(Number(hookSymbol.value))}${trampolineSymbol ? `, trampoline "${hook.trampoline}" at ${modules.utils.hexify(Number(trampolineSymbol.value))}` : " (no trampoline)"}.`);
+                log.info(`Resolved hook symbol "${hook.symbol}" (${hook.name}) at ${modules.utils.hexify(Number(hookSymbol.value))}${trampolineSymbol ? `, trampoline "${trampolineName}" at ${modules.utils.hexify(Number(trampolineSymbol.value))}` : " (no trampoline)"}.`);
 
                 const hookSrc = hook.address;
                 const hookDst = constants.NSMBUDX_NSO_MEMORY_SIZE + Number(hookSymbol.value);
+                const link = hook.type === "call";
 
                 addPatch({
                     address: hook.address + constants.NSO_HEADER_SIZE,
-                    data: modules.brazo.assembleBranchInstruction(hookSrc, hookDst)
-                }, `hook "${hook.name}" redirect at ${modules.utils.hexify(hookSrc)} to symbol "${hook.symbol}" (${modules.utils.hexify(hookDst)})`);
+                    data: modules.brazo.assembleBranchInstruction(hookSrc, hookDst, link)
+                }, `hook "${hook.name}" ${link ? "call" : "redirect"} at ${modules.utils.hexify(hookSrc)} to symbol "${hook.symbol}" (${modules.utils.hexify(hookDst)})`);
 
                 if (!trampolineSymbol) return null;
 
@@ -301,7 +308,7 @@ ${hook.trampoline}:
 
                 const chunk = modules.brazo.assembleBranchInstruction(trampolineSrc, trampolineDst);
 
-                log.info(`Trampoline "${hook.trampoline}" branch-back will be written at .text file offset ${modules.utils.hexify(offset)}, returning from ${modules.utils.hexify(trampolineSrc)} to ${modules.utils.hexify(trampolineDst)}.`);
+                log.info(`Trampoline "${trampolineName}" branch-back will be written at .text file offset ${modules.utils.hexify(offset)}, returning from ${modules.utils.hexify(trampolineSrc)} to ${modules.utils.hexify(trampolineDst)}.`);
 
                 return {
                     offset,
@@ -337,7 +344,13 @@ ${hook.trampoline}:
         log.info("Compilation completed successfully.");
     } catch (error) {
         log.error(error instanceof Error ? (error.stack ?? error.message) : String(error));
-        throw error;
+        console.error(error instanceof Error ? (error.message) : error);
+
+        try {
+            Deno.removeSync("./atmosphere", { recursive: true });
+        } catch {
+            // .
+        }
     } finally {
         log.close();
     }

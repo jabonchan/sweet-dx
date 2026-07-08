@@ -22,15 +22,21 @@ export class SourceGenerator {
         registry.registerSignature(signature);
 
         const enclosingClass = signature.enclosingClasses[0] ?? null;
+
+        if (signature.isConstructor && !enclosingClass) {
+            throw new Error(`Constructor "${signature.functionName}" is missing its enclosing class.`);
+        }
+
         const paramsRendered = signature.parameters.map((parameter) => renderType(parameter.type)).join(", ");
         const qualifierSuffix = SourceGenerator.renderQualifierSuffix(signature);
+        const returnTypePrefix = signature.isConstructor ? "" : "void ";
 
         const memberTemplateArity = signature.explicitTemplateArgs?.length ?? null;
         const memberDeclarationLines = [
             ...(signature.explicitTemplateArgs
                 ? [templateHeaderFor(signature.explicitTemplateArgs, registry, "RevoltijoArg")]
                 : []),
-            `void ${signature.functionName}(${paramsRendered})${qualifierSuffix};`,
+            `${returnTypePrefix}${signature.functionName}(${paramsRendered})${qualifierSuffix};`,
         ];
 
         const declarationBody = SourceGenerator.renderEnclosingClassDeclaration(enclosingClass, memberDeclarationLines, registry);
@@ -48,7 +54,7 @@ export class SourceGenerator {
 
         const definitionSection = [
             ...(memberTemplateArity !== null ? ["template<>"] : []),
-            `void ${qualifiedFunctionName}(${paramsRendered})${qualifierSuffix} {}`,
+            `${returnTypePrefix}${qualifiedFunctionName}(${paramsRendered})${qualifierSuffix} {}`,
         ].join("\n");
 
         return [registry.root.render(""), declarationSection, definitionSection]

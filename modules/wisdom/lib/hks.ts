@@ -1,10 +1,11 @@
 import { ensureMangled } from "../../revoltijo/mod.ts";
 import { archivo, utils } from "../deps.ts";
 
-export type HookType = "hook" | "instr" | "data";
+export type HookType = "hook" | "call" | "instr" | "data";
 
 export type HookDefinition =
     | { readonly name: string; readonly type: "hook"; readonly address: number; readonly symbol: string; readonly trampoline?: string }
+    | { readonly name: string; readonly type: "call"; readonly address: number; readonly symbol: string }
     | { readonly name: string; readonly type: "instr"; readonly address: number; readonly instruction: string }
     | { readonly name: string; readonly type: "data"; readonly address: number; readonly data: Uint8Array };
 
@@ -13,8 +14,12 @@ type RawField = { readonly value: string; readonly line: number };
 const HOOK_HEADER_PATTERN = /^(\S+):$/;
 const FIELD_PATTERN = /^\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.*)$/;
 
+const NOMANGLE_DIRECTIVE = ".NOMANGLE";
+const CONSTRUCTOR_DIRECTIVE = ".CONSTRUCTOR";
+
 const FIELDS_BY_TYPE: Record<HookType, { readonly required: readonly string[]; readonly optional: readonly string[] }> = {
     hook: { required: ["type", "address", "symbol"], optional: ["trampoline"] },
+    call: { required: ["type", "address", "symbol"], optional: [] },
     instr: { required: ["type", "address", "instruction"], optional: [] },
     data: { required: ["type", "address", "data"], optional: [] },
 };
@@ -126,10 +131,13 @@ export class Hks {
                     name,
                     type: "hook",
                     address,
-                    symbol: ensureMangled(fields.get("symbol")!.value),
-                    ...(trampoline !== undefined ? { trampoline: ensureMangled(trampoline) } : {}),
+                    symbol: this.resolveSymbol(fields.get("symbol")!.value),
+                    ...(trampoline !== undefined ? { trampoline: this.resolveSymbol(trampoline) } : {}),
                 };
             }
+
+            case "call":
+                return { name, type: "call", address, symbol: this.resolveSymbol(fields.get("symbol")!.value) };
 
             case "instr":
                 return { name, type: "instr", address, instruction: fields.get("instruction")!.value };
@@ -140,6 +148,22 @@ export class Hks {
                 return { name, type: "data", address, data: this.parseDataBytes(data.value, data.line) };
             }
         }
+    }
+
+    private resolveSymbol(value: string): string {
+        for (const directive of [NOMANGLE_DIRECTIVE, CONSTRUCTOR_DIRECTIVE]) {
+            if (!value.startsWith(directive)) continue;
+
+            const rest = value.slice(directive.length).trim();
+
+            if (!rest) {
+                throw new Error(`Expected a symbol name after "${directive}" in "${this.path}": "${value}".`);
+            }
+
+            return directive === NOMANGLE_DIRECTIVE ? rest : ensureMangled(rest, true);
+        }
+
+        return ensureMangled(value);
     }
 
     private parseDataBytes(value: string, line: number): Uint8Array {

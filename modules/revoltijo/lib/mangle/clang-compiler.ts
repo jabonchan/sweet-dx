@@ -21,11 +21,17 @@ export class ClangCompiler {
             Deno.writeTextFileSync(sourcePath, source);
 
             const result = child_process.spawnSync("clang++", [
-                "-c",
-                `--target=${this.targetTriple}`,
+                "--target=armv7l-none-eabihf",
+                "-mcpu=cortex-a57",
+                "-mfpu=crypto-neon-fp-armv8",
+                "-mfloat-abi=hard",
+                "-fPIC",
+                "-nostdlib",
                 "-ffreestanding",
-                "-fno-exceptions",
                 "-fno-rtti",
+                "-fno-exceptions",
+                "-fpermissive",
+                "-c",
                 "-o",
                 objectPath,
                 sourcePath,

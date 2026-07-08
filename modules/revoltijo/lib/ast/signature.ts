@@ -22,5 +22,6 @@ export class FunctionSignature {
         public readonly cvQualifiers: readonly string[],
         public readonly refQualifier: "&" | "&&" | null,
         public readonly isNoexcept: boolean,
+        public readonly isConstructor: boolean = false,
     ) {}
 }

@@ -8,15 +8,20 @@ export function assembleInstruction(instr: string) {
 
         Deno.writeTextFileSync(file, code);
 
-        const proc = child_process.spawnSync("clang", [
-            file,
+        const proc = child_process.spawnSync("clang++", [
             "--target=armv7l-none-eabihf",
             "-mcpu=cortex-a57",
             "-mfpu=crypto-neon-fp-armv8",
             "-mfloat-abi=hard",
-            "-o",
-            out,
+            "-fPIC",
+            "-nostdlib",
+            "-fno-rtti",
+            "-fno-exceptions",
+            "-fpermissive",
             "-c",
+            file,
+            "-o",
+            out
         ], { stdio: "pipe" });
 
         if (proc.status || !archivo.existsAsFile(out)) throw new Error("Failed to assemble instruction: " + instr);

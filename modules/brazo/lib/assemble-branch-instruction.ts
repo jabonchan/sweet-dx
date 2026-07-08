@@ -1,4 +1,4 @@
-export function assembleBranchInstruction(src: number, dest: number) {
+export function assembleBranchInstruction(src: number, dest: number, link: boolean = false) {
     if ((src & 3) !== 0 || (dest & 3) !== 0) {
         throw new Error("Source and destination must be 4-byte aligned");
     }
@@ -11,6 +11,7 @@ export function assembleBranchInstruction(src: number, dest: number) {
 
     instruction &= 0x00FFFFFF;
     instruction |= 0b101 << 25;
+    if (link) instruction |= 1 << 24;
     instruction |= 14 << 28;
     instruction >>>= 0;
 

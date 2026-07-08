@@ -16,9 +16,9 @@ export function isDemangled(definition: string) {
     return !isMangled(definition);
 }
 
-export function ensureMangled(definition: string) {
+export function ensureMangled(definition: string, isConstructor: boolean = false) {
     if (isMangled(definition)) return definition;
-    return mangle(definition);
+    return mangle(definition, isConstructor);
 }
 
 export function ensureDemangled(definition: string) {
@@ -35,6 +35,6 @@ export function demangle(definition: string): string {
     return demangled;
 }
 
-export function mangle(definition: string): string {
-    return mangler.mangle(definition);
+export function mangle(definition: string, isConstructor: boolean = false): string {
+    return mangler.mangle(definition, isConstructor);
 }

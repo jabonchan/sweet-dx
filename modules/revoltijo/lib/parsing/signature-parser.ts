@@ -1,8 +1,9 @@
-import { CppParser } from "./cpp-parser.ts";
+import type { CppParser } from "./cpp-parser.ts";
+
+import { EnclosingScope, FunctionSignature, Parameter } from "../ast/signature.ts";
 import { SignaturePreprocessor } from "./preprocessor.ts";
 import { FunctionNameParser } from "./function-name-parser.ts";
 import { ParameterParser } from "./parameter-parser.ts";
-import { EnclosingScope, FunctionSignature, Parameter } from "../ast/signature.ts";
 
 interface TrailingQualifiers {
     cvQualifiers: string[];
@@ -19,7 +20,7 @@ export class SignatureParser {
         this.parameterParser = new ParameterParser(parser);
     }
 
-    parse(rawSignature: string): FunctionSignature {
+    parse(rawSignature: string, isConstructor: boolean = false): FunctionSignature {
         const { head, parameterListText, trailing } = SignaturePreprocessor.split(rawSignature);
         const parsedName = this.functionNameParser.parse(head);
 
@@ -34,7 +35,25 @@ export class SignatureParser {
         const namespaces = [...parsedName.namespaces];
         const enclosingClasses = [...parsedName.enclosingClasses];
 
-        if ((cvQualifiers.length || refQualifier) && !enclosingClasses.length && namespaces.length) {
+        if (isConstructor) {
+            if (cvQualifiers.length || refQualifier) {
+                throw new Error(`Constructor signature "${rawSignature}" cannot have cv/ref qualifiers.`);
+            }
+
+            if (enclosingClasses.length) {
+                throw new Error(
+                    `Constructor signature "${rawSignature}" cannot have a template-qualified enclosing scope.`,
+                );
+            }
+
+            if (!namespaces.length || namespaces[namespaces.length - 1] !== parsedName.functionName) {
+                throw new Error(
+                    `Constructor signature "${rawSignature}" must repeat the class name, e.g. "ClassName::ClassName(...)".`,
+                );
+            }
+
+            enclosingClasses.push(new EnclosingScope(namespaces.pop()!, null));
+        } else if ((cvQualifiers.length || refQualifier) && !enclosingClasses.length && namespaces.length) {
             enclosingClasses.push(new EnclosingScope(namespaces.pop()!, null));
         }
 
@@ -48,6 +67,7 @@ export class SignatureParser {
             cvQualifiers,
             refQualifier,
             isNoexcept,
+            isConstructor,
         );
     }
 

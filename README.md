@@ -33,7 +33,7 @@ SweetDX itself should run anywhere Deno does, but the compilation pipeline shell
 | Executable | Used for | Provided by |
 |---|---|---|
 | `deno` | Compiling SweetDX or running it directly from source | [Deno](https://deno.com/) |
-| `clang` / `clang++` | Compiling your `.cpp` sources and the auto-generated assembly (`arm-none-eabi`/`armv7l-none-eabihf` targets) | An [LLVM](https://llvm.org/) install with the ARM backend enabled (default in most distributions) |
+| `clang++` | Compiling your `.cpp` sources and the auto-generated assembly (`armv7l-none-eabihf` target) | An [LLVM](https://llvm.org/) install with the ARM backend enabled (default in most distributions) |
 | `arm-none-eabi-ld` | Linking the final ELF | An ARM GNU/LLVM binutils toolchain (e.g. [Arm GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) or [devkitARM](https://devkitpro.org/)) |
 | `c++filt` | Demangling C++ symbols | Same binutils distribution as above |
 
@@ -59,7 +59,28 @@ your-project/
 
 - A `debug.log` gets written to the project root on every build with a timestamped log of what the pipeline did — handy when you need to figure out why a build failed.
 
-- You'll need a `extern "C" void static_init()` function somewhere in your code. Have it do some initialization, or just leave it empty — either way, it has to exist.
+- **`static_init` and why it needs `extern "C"`.** `crt0.s` exposes a small trampoline named `static_init_hook` whose only job is to call out to a function you provide, named `static_init`, meant for whatever early setup your code needs (running static constructors, etc). Two things to know about it:
+
+  - `static_init_hook` isn't called automatically on boot — nothing runs it unless you point a hook at it yourself, with a `.hks` entry like:
+
+    ```hks
+    static_init:
+        type:     hook
+        address:  0x0000019C
+        symbol:   .NOMANGLE static_init_hook
+    ```
+
+    Pick an `address` early enough in the game's boot sequence that your init logic runs before anything else depends on it — but any valid instruction address works.
+
+  - `static_init_hook` calls `static_init` expecting plain C linkage (an unmangled symbol), since that's how it's referenced from assembly. Since SweetDX always compiles every source file — `.c` included — through `clang++`, any plain definition like `void static_init()` gets silently C++ name-mangled instead of staying as `static_init`. So you must always use `extern "C"` to avoid this problem. Regardless if you install a hook for this function or not you must still declare it like this:
+
+    ```cpp
+    extern "C" void static_init() {
+        // your early init logic here — or leave it empty
+    }
+    ```
+
+    You need this declaration even if you never wire up the hook above.
 
 ### ⚙️ How a build works
 
@@ -101,7 +122,7 @@ SweetDX's code is split into small, single-purpose modules under `modules/`. Thi
 
 A `.hks` file is a plain-text list of named hook definitions. Each one starts at column 0 with a `name:` header, followed by indented `field: value` lines. Lines starting with `@` and blank lines are just comments and get ignored.
 
-There are three hook types:
+There are four hook types:
 
 ```hks
 @ a "hook" redirects a location to your function, optionally trampolining back
@@ -110,6 +131,12 @@ MyEnemyOnUpdateHook:
     address: 0x001A2B30
     symbol: nsmbu::EnemyBase::onUpdate()
     trampoline: nsmbu::EnemyBase::onUpdateTrampoline()
+
+@ a "call" hook is like "hook" but branches with link (bl) and never trampolines back
+MyEnemyOnUpdateCall:
+    type: call
+    address: 0x001A2B30
+    symbol: nsmbu::EnemyBase::onUpdate()
 
 @ an "instr" hook overwrites a single instruction at an address
 DisableSomeCheck:
@@ -129,8 +156,28 @@ Field reference:
 | Type | Required fields | Optional fields | Notes |
 |---|---|---|---|
 | `hook` | `type`, `address`, `symbol` | `trampoline` | `symbol` (and `trampoline`, if given) can be a plain mangled name **or** a full C++ signature — `revoltijo` mangles it for you if it isn't mangled already. Leave out `trampoline` and it'll just branch to `symbol` without preserving the original instruction. |
+| `call` | `type`, `address`, `symbol` | — | Same as `hook`, but has no `trampoline` field and patches a `bl` (branch-with-link) instead of a `b`, so the original code resumes right after the call returns. |
 | `instr` | `type`, `address`, `instruction` | — | `instruction` is a single line of real ARM assembly (e.g. `nop`, `mov r0, #1`), assembled through `clang` and inserted as an IPS patch. |
 | `data` | `type`, `address`, `data` | — | `data` is a sequence of hex byte pairs, space-separated, with or without a `0x` prefix. |
+
+`symbol` and `trampoline` also accept two directive prefixes for cases the auto-mangler can't (or shouldn't) handle on its own:
+
+- **`.NOMANGLE <name>`** — skips mangling entirely and uses `<name>` exactly as written, looked up as-is in the symbol table. Use this for names that aren't a C++ signature at all (raw SDK exports, already-mangled names `revoltijo` can't round-trip, etc).
+- **`.CONSTRUCTOR <ClassName>::<ClassName>(...)`** — mangles the signature as a constructor instead of a plain member function. Plain `symbol: Profile::Profile(int)` would mangle `Profile` as a namespace containing a function also named `Profile`, which is a different (wrong) symbol. `.CONSTRUCTOR` tells `revoltijo` to instead generate `struct Profile { Profile(int); };` and resolves to the complete-object constructor (`...C1E...`).
+
+```hks
+@ hooking a raw, already-known symbol without going through the mangler
+PatchSdkExport:
+    type: call
+    address: 0x001A2E00
+    symbol: .NOMANGLE nnMain
+
+@ hooking a constructor
+PatchProfileCtor:
+    type: call
+    address: 0x001A2F10
+    symbol: .CONSTRUCTOR Profile::Profile(int)
+```
 
 `address` is always a hexadecimal offset into `main`'s `.text` section (the same kind of address most NSMBUDX reverse-engineering notes and decompiler dumps use), not a full runtime memory address.
 
