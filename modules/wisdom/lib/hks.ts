@@ -227,7 +227,7 @@ export class Hks {
 
         if (address < 0) {
             throw new Error(
-                `Hook "${name}" at line ${addressField.line} in "${this.path}" has an invalid address "${addressField.value}" (expected hexadecimal such as 0x00123456; comments start with "@").`,
+                `Hook "${name}" at line ${addressField.line} in "${this.path}" has an invalid address "${addressField.value}" (expected positive address).`,
             );
         }
 

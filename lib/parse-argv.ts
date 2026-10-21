@@ -1,9 +1,11 @@
+/** Flags that take no value, e.g. `--help`. Maps context key -> flag text. */
 export const BooleanFlags = {
     help: "--help",
     verbose: "--verbose",
     version: "--version",
 } as const;
 
+/** Flags that take a value in the form `--flag=value`. Maps context key -> flag text. */
 export const ValueFlags = {
     init: "--init",
     source: "--source",
@@ -14,10 +16,15 @@ export const ValueFlags = {
 export type BooleanFlag = keyof typeof BooleanFlags;
 export type ValueFlag = keyof typeof ValueFlags;
 export type Flag = BooleanFlag | ValueFlag;
+/** Parsed arguments: booleans for BooleanFlags, strings ("" if unset) for ValueFlags. */
 export type ArgvContext =
     & Record<BooleanFlag, boolean>
     & Record<ValueFlag, string>;
 
+/**
+ * Flags that can't be used together. If `flag` is set alongside any of its
+ * `conflicts`, `message` is printed and the program exits.
+ */
 export const IncompatibleFlags: {
     flag: Flag;
     conflicts: Flag[];
@@ -50,6 +57,7 @@ export const IncompatibleFlags: {
     },
 ];
 
+/** Returns the key of the first flag in `flags` whose text satisfies `matches`. */
 export function findFlag<K extends string>(
     flags: Record<K, string>,
     matches: (flag: string) => boolean,
@@ -57,11 +65,19 @@ export function findFlag<K extends string>(
     return (Object.keys(flags) as K[]).find((key) => matches(flags[key]));
 }
 
+/** Prints the "provided multiple times" error for `flag`. */
 export function duplicateFlag(flag: string): void {
     console.error(`Error: "${flag}" was provided multiple times`);
 }
 
+/**
+ * Parses the command line arguments into an ArgvContext.
+ *
+ * @returns The parsed context, or nothing if an argument was invalid
+ * (the error has already been printed).
+ */
 export function parseArgv(argv: string[]): ArgvContext | void {
+    // Defaults for every flag.
     const context: ArgvContext = {
         help: false,
         verbose: false,
@@ -73,6 +89,7 @@ export function parseArgv(argv: string[]): ArgvContext | void {
     };
 
     for (const arg of argv) {
+        // Boolean flags must match exactly.
         const booleanFlag = findFlag(BooleanFlags, (flag) => arg === flag);
 
         if (booleanFlag) {
@@ -83,20 +100,16 @@ export function parseArgv(argv: string[]): ArgvContext | void {
             continue;
         }
 
+        // Value flags are matched by prefix, then required to have "=value".
         const valueFlag = findFlag(
             ValueFlags,
-            (flag) => arg.startsWith(`${flag}`),
+            (flag) => arg.startsWith(`${flag}=`),
         );
 
         if (valueFlag) {
             if (context[valueFlag]) return duplicateFlag(ValueFlags[valueFlag]);
-            if (!arg.startsWith(`${ValueFlags[valueFlag]}=`)) {
-                console.error(
-                    `Error: No value passed to ${ValueFlags[valueFlag]}`,
-                );
-                return;
-            }
 
+            // Everything after "--flag=" is the value; it can't be empty.
             context[valueFlag] = arg.slice(ValueFlags[valueFlag].length + 1);
             if (!context[valueFlag]) {
                 console.error(

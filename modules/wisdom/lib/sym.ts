@@ -9,7 +9,7 @@ export type SymEntry = {
 // The trailing ";" is optional: codedx's own main.sym omits it on its first entry.
 const STATEMENT_PATTERN = /^([^\s=]+)\s*=\s*(-?0x[0-9a-fA-F]+)\s*;?$/i;
 
-/** A parsed `.sym` file: `name = 0xADDRESS;` or `name = -0xADDRESS` lines, with `#` comments. */
+/** A parsed `.sym` file: `name = 0xADDRESS;` lines, with `#` comments. */
 export class Sym {
     readonly file: archivo.Archivo;
     readonly symbols: readonly SymEntry[];
@@ -89,8 +89,13 @@ export class Sym {
             }
 
             firstSeenAt.set(name, i + 1);
+            const address = utils.dehexify(hex);
 
-            symbols.push({ name, address: utils.dehexify(hex) });
+            if (address < 0) {
+                throw new Error("Addresses can't be negative!");
+            }
+
+            symbols.push({ name, address });
         }
 
         return symbols;

@@ -59,6 +59,182 @@ A couple of notes:
 - `c++filt` is run with `-n` so it doesn't strip the leading underscore from
   mangled names. Some macOS versions do that by default.
 
+## 📄 File Formats
+
+SweetDX reads two kinds of files: `.sym` files, which tell it where things are
+in the game, and `.hks` files, which tell it what to patch. Put your `.sym`
+files in `symbols/` and your `.hks` files in `hooks/`. You can have as many of
+each as you want, SweetDX loads all of them.
+
+Addresses in both formats are hexadecimal (like `0x0025CF50`).
+
+### `.sym` files
+
+A `.sym` file is a list of symbols that already exist in the game, so your code
+can use them. It looks like this:
+
+```
+# Math
+_Z3sinf = 0x009AD484;
+_Z3cosf = 0x009AD478;
+
+# new/delete/malloc/free
+_Znwj = 0x008DE044;
+malloc = 0x00835108;
+```
+
+- Each line is `name = address;`. The `;` at the end is optional.
+- The name is exactly what the linker sees. C++ functions and variables have to
+  be written mangled (`_Z3sinf`, not `sin(float)`), while C ones are just their
+  name.
+- `#` starts a comment that goes until the end of the line. Empty lines are
+  ignored.
+- A name can only be defined once per file.
+
+When compiling, every `.sym` file is turned into a linker script. That means you
+just declare the function or variable in your headers like you normally would,
+and the linker points it to the right address.
+
+### `.hks` files
+
+A `.hks` file is a list of hooks. Each hook has a name followed by a few fields:
+
+```
+@ Disables the game from setting original sprite -> profile ids
+SpriteToProfileTableNoSInit:
+    type:         instr
+    instruction:  bx lr
+    address:      0x00014724
+
+Profile_get:
+    type:     hook
+    address:  0x000182A0
+    symbol:   Profile::get(unsigned int)
+```
+
+- A hook starts with its name and a `:`, with no indentation and no spaces in
+  the name. Names have to be unique across **all** your `.hks` files.
+- The fields go below it, indented, as `key: value`. The order doesn't matter,
+  and you can add spaces to line the values up.
+- `@` starts a comment, either at the start of a line or after a space.
+- Every hook needs a `type` and an `address`. Two hooks can't target the same
+  address.
+
+These are the types you can use:
+
+### Type: `hook`
+
+Replaces the instruction at `address` with a branch (`B`) to your function. Hook
+the first instruction of a function and your function runs instead of it,
+returning straight to the caller.
+
+```
+Profile_get:
+    type:     hook
+    address:  0x000182A0
+    symbol:   Profile::get(unsigned int)
+```
+
+- `type`: `hook`.
+- `address`: the instruction that gets replaced with the branch. It has to be
+  aligned to 4.
+- `symbol`: the function the game branches to. It can be written in three
+  different ways:
+  - **A C name**, like `misc_init`. Use this for functions written in C or ASM,
+    or declared as `extern "C"` in C++.
+  - **A mangled C++ name**, like `_ZN17SumoBrosLightning9setYSpeedEv`. It's used
+    as-is.
+  - **A C++ signature**, like `Profile::get(unsigned int)`. SweetDX mangles it
+    for you, so it has to match your declaration exactly. Constructors are
+    mangled as complete object constructors (`C1`).
+- `trampoline` (optional): a function SweetDX generates for you. It runs the
+  original instruction your hook overwrote and then jumps back to the game,
+  right after `address`. Calling it from your hook is how you run the original
+  function. It can be written in the same three ways as `symbol`.
+
+```
+Foo_hook:
+    type:       hook
+    address:    0x00123456
+    symbol:     Foo_hook(int value)
+    trampoline: Foo_original(int value)
+```
+
+```cpp
+int Foo_original(int value);
+
+int Foo_hook(int value) {
+    // Do your thing here
+    return Foo_original(value);
+}
+```
+
+You only declare the trampoline, SweetDX writes it for you. Trampoline
+names/signature have to be unique too. As stated above, they can also be C++
+signatures or mangled C++ signatures. Keep in mind the original instruction is
+copied as-is, so don't hook instructions that depend on where they are (like
+PC-relative loads or branches) if you want to use a trampoline.
+
+### Type: `call`
+
+Replaces the instruction at `address` with a branch with link (`BL`) to your
+function. The game calls your function and keeps going right after it.
+
+```
+misc_init:
+    type:    call
+    address: 0x00562998
+    symbol:  misc_init
+```
+
+- `type`: `call`.
+- `address`: the instruction that gets replaced with the branch. It has to be
+  aligned to 4.
+- `symbol`: the function the game calls. It can be written in the same three
+  ways as a `hook`'s `symbol`.
+
+### Type: `instr`
+
+Replaces the instruction at `address` with one you write.
+
+```
+BobOmb_noTypeCountCheck:
+    type:        instr
+    instruction: mov r1, r0,LSR#28
+    address:     0x0025CF50
+```
+
+- `type`: `instr`.
+- `address`: the instruction that gets replaced. It has to be aligned to 4.
+- `instruction`: a single 32-bit ARM instruction (not Thumb), written the same
+  way you'd write it in a `.s` file.
+  - SweetDX assembles it with `clang++` for the same CPU it compiles your code.
+  - Only one instruction at a time. If you need more, use a `hook` or a `call`
+    to your own code instead.
+  - The instruction is assembled on its own, without knowing where it's going to
+    end up, so branches and PC-relative loads won't point where you expect. Use
+    `hook` or `call` for branching to your code.
+  - `#` works just fine (`cmp r1, #0x10000`), as comments in `.hks` use `@`.
+
+### Type: `data`
+
+Writes raw bytes at `address`.
+
+```
+Foo_data:
+    type:    data
+    address: 0x00123456
+    data:    DE AD BE EF
+```
+
+- `type`: `data`.
+- `address`: where the first byte goes. Unlike the other types, it doesn't have
+  to be aligned.
+- `data`: the bytes to write, in hex. Spaces and `0x` prefixes are optional, so
+  `DE AD BE EF`, `0xDE 0xAD 0xBE 0xEF` and `DEADBEEF` all mean the same thing.
+  It has to add up to whole bytes, and they're written in the exact order you
+  give them, so endianness is on you.
+
 ## 🤖 AI Usage Disclaimer
 
 SweetDX uses AI to help speed up development, document code, and avoid writing
