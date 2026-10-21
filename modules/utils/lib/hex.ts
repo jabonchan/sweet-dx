@@ -11,14 +11,22 @@ export function hexify(number: number, length: number = 8, prefix: boolean = tru
 }
 
 export function dehexify(hex: string): number {
-    hex = hex.replace(/\s+/g, "").toLowerCase();
-    const sign = hex.startsWith("-") ? -1 : 1;
-    hex = hex.startsWith("-0x") ? hex.slice(3) : hex.startsWith("0x") ? hex.slice(2) : hex;
-    const number = sign * parseInt(hex, 16);
+    const original = hex.trim();
+    let digits = hex.replace(/\s+/g, "").toLowerCase();
+    let sign = 1;
 
-    if (isNaN(number)) throw new Error(`Invalid hexadecimal number: ${hex}`);
-    
-    return number;
+    // The sign is stripped first. The old code only handled "-0x..." and turned "-ff" into +255.
+    if (digits.startsWith("-")) {
+        sign = -1;
+        digits = digits.slice(1);
+    }
+
+    if (digits.startsWith("0x")) digits = digits.slice(2);
+
+    // parseInt() silently stops at the first invalid character, so "0x1234zz" used to parse as 0x1234.
+    if (!/^[0-9a-f]+$/.test(digits)) throw new Error(`Invalid hexadecimal number: "${original}"`);
+
+    return sign * parseInt(digits, 16) + 0; // "+ 0" turns -0 into 0
 }
 
 export function parseBytes(bytes: string): Uint8Array {

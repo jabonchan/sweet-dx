@@ -11,6 +11,10 @@ export class NSO {
     constructor(public readonly path: string) {
         this.file = new archivo.Archivo(path);
 
+        // Archivo opens with create-but-not-truncate and sections are appended at the end of
+        // the file, so an existing larger file would leave stale bytes before the new NSO.
+        this.file.handle.truncateSync(0);
+
         this.file.writeAt(0x00, new Uint8Array(defs.TOTAL_HEADER_SIZE));
         this.file.writeAt(defs.FIXED_OFFSETS.magic, utils.encode(defs.MAGIC_STRING));
         this.file.writeAt(defs.FIXED_OFFSETS.buildId, new Uint8Array(defs.BUILD_ID_SIZE));
@@ -48,6 +52,15 @@ export class NSO {
 
         this.writtenSections.add(section);
         this.nextSectionIndex++;
+    }
+
+    /** Closes the file without finalising it (build failed). Safe to call more than once. */
+    abort(): void {
+        try {
+            this.file.close();
+        } catch {
+            // Already closed.
+        }
     }
 
     digest(): void {

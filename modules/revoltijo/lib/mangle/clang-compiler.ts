@@ -14,7 +14,11 @@ export class ClangCompiler {
         const objectPath = `${dir}/signature.o`;
 
         const cleanup = (): void => {
-            Deno.removeSync(dir, { recursive: true });
+            try {
+                Deno.removeSync(dir, { recursive: true });
+            } catch {
+                // A locked temp file must never replace the real error.
+            }
         };
 
         try {
@@ -36,6 +40,10 @@ export class ClangCompiler {
                 objectPath,
                 sourcePath,
             ], { stdio: "pipe" });
+
+            if (result.error) {
+                throw new Error(`Could not run clang++ to mangle a signature (${result.error.message}). Is clang++ on your PATH?`);
+            }
 
             if (result.status !== 0) {
                 const stderr = new TextDecoder().decode(result.stderr ?? new Uint8Array());

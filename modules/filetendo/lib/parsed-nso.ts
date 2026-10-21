@@ -28,7 +28,8 @@ export class ParsedNSO {
     private readonly segmentsByName: ReadonlyMap<defs.NSOSectionName, NSOSegment>;
 
     constructor(public readonly path: string) {
-        this.file = new archivo.Archivo(path);
+        // Read-only: the game's main must never be created, modified or require write access.
+        this.file = new archivo.Archivo(path, { readOnly: true });
 
         const magicBytes = utils.encode(defs.MAGIC_STRING);
 

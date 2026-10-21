@@ -1,12 +1,19 @@
 export function assembleBranchInstruction(src: number, dest: number, link: boolean = false) {
+    const hex = (n: number) => "0x" + n.toString(16).toUpperCase();
+
     if ((src & 3) !== 0 || (dest & 3) !== 0) {
-        throw new Error("Source and destination must be 4-byte aligned");
+        throw new Error(`Branch source (${hex(src)}) and destination (${hex(dest)}) must both be 4-byte aligned.`);
     }
 
-    let instruction = (dest >> 2) - (src >> 2) - 2;
+    // Both addresses are multiples of 4, so plain division is exact and, unlike ">>",
+    // stays correct above 2^31.
+    let instruction = (dest / 4) - (src / 4) - 2;
 
-    if (instruction < -0x1000000 || instruction > 0xFFFFFF) {
-        throw new Error("Out of bounds jump range!");
+    // ARM B/BL encode a SIGNED 24-bit word offset (+-32 MiB). The old check allowed a
+    // 25-bit range, so offsets past +-0x7FFFFF words were silently truncated into a
+    // branch to the wrong place instead of failing.
+    if (instruction < -0x800000 || instruction > 0x7FFFFF) {
+        throw new Error(`Branch from ${hex(src)} to ${hex(dest)} is out of range (ARM B/BL can only reach +-32 MiB).`);
     }
 
     instruction &= 0x00FFFFFF;

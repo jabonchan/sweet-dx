@@ -22,7 +22,7 @@ export class Archivo {
     public readonly handle: Deno.FsFile;
     private closed = false;
 
-    constructor(public readonly path: string) {
+    constructor(public readonly path: string, options: { readOnly?: boolean } = {}) {
         this.path = way.isRelative(path) ? way.join(Deno.cwd(), path) : way.normalize(path);
 
         if (e.exists(this.path) && !e.existsAsFile(this.path)) {
@@ -36,7 +36,7 @@ export class Archivo {
         this.info = way.parse(this.path);
 
         try {
-            this.handle = Deno.openSync(this.path, { read: true, write: true, create: true });
+            this.handle = Deno.openSync(this.path, options.readOnly ? { read: true } : { read: true, write: true, create: true });
         } catch (error) {
             throw new Error(`Failed to open file "${this.path}": ${(error as Error).message}`);
         }
