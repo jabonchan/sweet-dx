@@ -1,13 +1,26 @@
 {
     "name": "@jabonchan/sweet-dx",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "license": "GPL-3.0-or-later",
     "exports": "./mod.ts",
-    "imports": {},
+    "imports": {
+        "@std/assert": "jsr:@std/assert@1.0.19"
+    },
     "nodeModulesDir": "auto",
+    "test": {
+        "include": ["modules/titanio/tests/"]
+    },
     "fmt": {
         "exclude": [],
         "indentWidth": 4,
         "useTabs": false
+    },
+    "tasks": {
+        "test": "deno test -A",
+        "format": "deno fmt",
+        "compile-linux": "deno compile --include ./assets --target x86_64-unknown-linux-gnu --output ./build/sweetdx-linux --allow-all mod.ts",
+        "compile-windows": "deno compile --include ./assets --target x86_64-pc-windows-msvc --output ./build/sweetdx-windows.exe --allow-all mod.ts",
+        "compile-macos": "deno compile --include ./assets --target x86_64-apple-darwin --output ./build/sweetdx-macos --allow-all mod.ts",
+        "compile-all": "deno task compile-linux && deno task compile-windows && deno task compile-macos"
     }
 }

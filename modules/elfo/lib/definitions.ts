@@ -1,8 +1,9 @@
 import { deeplevel } from "../deps.ts";
-import * as helpers from "./helpers.ts";
+import type * as helpers from "./helpers.ts";
 
 export type Structs = ReturnType<typeof helpers.getCorrectStructs>;
 
+/** A section header as read from the file, before its name is resolved. */
 export interface RawSectionHeader {
     name: number;
     type: number;
@@ -16,9 +17,12 @@ export interface RawSectionHeader {
     entsize: bigint;
 }
 
-export const ELFMAG = new Uint8Array([ 0x7F, 0x45, 0x4C, 0x46 ]);
+/** `ELF`, the magic number every ELF file starts with. */
+export const ELFMAG = new Uint8Array([0x7F, 0x45, 0x4C, 0x46]);
 
 export type Bits = 32 | 64;
+
+// ELF constants, named after their `<prefix>_<NAME>` from the spec (e.g. `SHT.SYMTAB` is `SHT_SYMTAB`).
 
 export enum Class {
     ELF32 = 1,
@@ -86,6 +90,7 @@ export enum PT {
     ARM_EXIDX = 0x70000001,
 }
 
+/** Section flags by their readelf letter, used to print `SHF` flags. */
 export enum Short {
     W = 0x1,
     A = 0x2,
@@ -289,6 +294,8 @@ export enum EM {
     CSKY = 252,
     LOONGARCH = 258,
 }
+
+// Raw struct layouts of every header, for each class/endianness combination.
 
 export const Elf_Ident = new deeplevel.NativeArray({ length: 16, type: "u8" });
 

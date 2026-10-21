@@ -1,34 +1,79 @@
-import { ensureMangled } from "../../revoltijo/mod.ts";
-import { archivo, utils } from "../deps.ts";
+import { archivo, titanio, utils } from "../deps.ts";
 
+/**
+ * - `hook`: branch from `address` to `symbol` (optionally with a trampoline)
+ * - `call`: replace the instruction at `address` with a `BL` to `symbol`
+ * - `instr`: replace the instruction at `address` with an assembled one
+ * - `data`: write raw bytes at `address`
+ */
 export type HookType = "hook" | "call" | "instr" | "data";
 
+/** How a symbol was written in the .hks: a C++ signature, an already-mangled name or a plain C name. */
+export type SymbolType = "c" | "c++" | "mangled";
+
+export type HookSymbol = {
+    /** The linkable name: mangled for "c++" and "mangled", the name itself for "c". */
+    readonly symbol: string;
+    readonly type: SymbolType;
+    readonly source: string;
+};
+
+/** A single parsed hook, with the fields its `type` needs. */
 export type HookDefinition =
-    | { readonly name: string; readonly type: "hook"; readonly address: number; readonly symbol: string; readonly trampoline?: string }
-    | { readonly name: string; readonly type: "call"; readonly address: number; readonly symbol: string }
-    | { readonly name: string; readonly type: "instr"; readonly address: number; readonly instruction: string }
-    | { readonly name: string; readonly type: "data"; readonly address: number; readonly data: Uint8Array };
+    | {
+        readonly name: string;
+        readonly type: "hook";
+        readonly address: number;
+        readonly symbol: HookSymbol;
+        readonly trampoline?: HookSymbol;
+    }
+    | {
+        readonly name: string;
+        readonly type: "call";
+        readonly address: number;
+        readonly symbol: HookSymbol;
+    }
+    | {
+        readonly name: string;
+        readonly type: "instr";
+        readonly address: number;
+        readonly instruction: string;
+    }
+    | {
+        readonly name: string;
+        readonly type: "data";
+        readonly address: number;
+        readonly data: Uint8Array;
+    };
 
 type RawField = { readonly value: string; readonly line: number };
 
 const HOOK_HEADER_PATTERN = /^(\S+):$/;
 const FIELD_PATTERN = /^\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.*)$/;
 
-const NOMANGLE_DIRECTIVE = ".NOMANGLE";
-const CONSTRUCTOR_DIRECTIVE = ".CONSTRUCTOR";
-
-const FIELDS_BY_TYPE: Record<HookType, { readonly required: readonly string[]; readonly optional: readonly string[] }> = {
+/** Which fields each hook type accepts. */
+const FIELDS_BY_TYPE: Record<
+    HookType,
+    {
+        readonly required: readonly string[];
+        readonly optional: readonly string[];
+    }
+> = {
     hook: { required: ["type", "address", "symbol"], optional: ["trampoline"] },
     call: { required: ["type", "address", "symbol"], optional: [] },
     instr: { required: ["type", "address", "instruction"], optional: [] },
     data: { required: ["type", "address", "data"], optional: [] },
 };
 
-/** "0x1234 @ explanation" -> "0x1234". Only an @ preceded by whitespace starts a comment. */
-function stripInlineComment(value: string): string {
-    return value.replace(/\s@.*$/, "").trim();
+/** "  address: 0x1234 @ explanation" -> "  address: 0x1234". An @ starts a comment at the start of a line or after whitespace. */
+function stripComment(line: string): string {
+    return line.replace(/(^|\s)@.*$/, "$1").trimEnd();
 }
 
+/**
+ * A parsed `.hks` file: unindented `name:` headers, each followed by indented
+ * `key: value` fields, with `@` comments.
+ */
 export class Hks {
     readonly file: archivo.Archivo;
     readonly hooks: readonly HookDefinition[];
@@ -44,10 +89,12 @@ export class Hks {
         }
     }
 
+    /** Returns the hook named `name`, if any. */
     findHook(name: string): HookDefinition | undefined {
         return this.hooks.find((hook) => hook.name === name);
     }
 
+    /** Groups the lines into hooks and their fields, then builds each hook. */
     private parse(text: string): HookDefinition[] {
         const lines = text.split(/\r\n|\r|\n/);
         const hooks: HookDefinition[] = [];
@@ -56,14 +103,19 @@ export class Hks {
         let nameLine = 0;
         let fields = new Map<string, RawField>();
 
+        // Builds the hook collected so far, called whenever a new header (or EOF) is reached.
         const finalize = () => {
-            if (name !== null) hooks.push(this.buildHook(name, nameLine, fields));
+            if (name !== null) {
+                hooks.push(this.buildHook(name, nameLine, fields));
+            }
         };
 
         for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
+            const line = stripComment(lines[i]);
 
-            if (line.trim().length === 0 || line.trim().startsWith("@")) continue;
+            if (line.trim().length === 0) {
+                continue;
+            }
 
             if (!/^\s/.test(line)) {
                 finalize();
@@ -71,11 +123,19 @@ export class Hks {
                 const header = line.trim().match(HOOK_HEADER_PATTERN);
 
                 if (!header) {
-                    throw new Error(`Invalid hook header at line ${i + 1} in "${this.path}": "${line}".`);
+                    throw new Error(
+                        `Invalid hook header at line ${
+                            i + 1
+                        } in "${this.path}": "${line}".`,
+                    );
                 }
 
                 if (hooks.some((hook) => hook.name === header[1])) {
-                    throw new Error(`Duplicate hook "${header[1]}" at line ${i + 1} in "${this.path}".`);
+                    throw new Error(
+                        `Duplicate hook "${header[1]}" at line ${
+                            i + 1
+                        } in "${this.path}".`,
+                    );
                 }
 
                 name = header[1];
@@ -86,22 +146,34 @@ export class Hks {
             }
 
             if (name === null) {
-                throw new Error(`Field defined before any hook header at line ${i + 1} in "${this.path}": "${line}".`);
+                throw new Error(
+                    `Field defined before any hook header at line ${
+                        i + 1
+                    } in "${this.path}": "${line}".`,
+                );
             }
 
             const field = line.match(FIELD_PATTERN);
 
             if (!field) {
-                throw new Error(`Invalid field at line ${i + 1} in "${this.path}": "${line}".`);
+                throw new Error(
+                    `Invalid field at line ${
+                        i + 1
+                    } in "${this.path}": "${line}".`,
+                );
             }
 
             const [, key, value] = field;
 
             if (fields.has(key)) {
-                throw new Error(`Duplicate field "${key}" for hook "${name}" at line ${i + 1} in "${this.path}".`);
+                throw new Error(
+                    `Duplicate field "${key}" for hook "${name}" at line ${
+                        i + 1
+                    } in "${this.path}".`,
+                );
             }
 
-            fields.set(key, { value: stripInlineComment(value), line: i + 1 });
+            fields.set(key, { value: value.trim(), line: i + 1 });
         }
 
         finalize();
@@ -109,25 +181,36 @@ export class Hks {
         return hooks;
     }
 
-    private buildHook(name: string, nameLine: number, fields: Map<string, RawField>): HookDefinition {
+    /** Validates a hook's fields against its type and turns them into a `HookDefinition`. */
+    private buildHook(
+        name: string,
+        nameLine: number,
+        fields: Map<string, RawField>,
+    ): HookDefinition {
         const type = fields.get("type")?.value;
 
         // Object.hasOwn: plain "in" also matched inherited names such as "constructor" and then crashed.
         if (!type || !Object.hasOwn(FIELDS_BY_TYPE, type)) {
-            throw new Error(`Hook "${name}" at line ${nameLine} in "${this.path}" has a missing or invalid "type" (expected "hook", "call", "instr" or "data").`);
+            throw new Error(
+                `Hook "${name}" at line ${nameLine} in "${this.path}" has a missing or invalid "type" (expected "hook", "call", "instr" or "data").`,
+            );
         }
 
         const spec = FIELDS_BY_TYPE[type as HookType];
 
         for (const required of spec.required) {
             if (!fields.has(required)) {
-                throw new Error(`Hook "${name}" at line ${nameLine} in "${this.path}" is missing required field "${required}".`);
+                throw new Error(
+                    `Hook "${name}" at line ${nameLine} in "${this.path}" is missing required field "${required}".`,
+                );
             }
         }
 
         for (const key of fields.keys()) {
             if (!spec.required.includes(key) && !spec.optional.includes(key)) {
-                throw new Error(`Hook "${name}" at line ${nameLine} in "${this.path}" has an unknown field "${key}" for type "${type}".`);
+                throw new Error(
+                    `Hook "${name}" at line ${nameLine} in "${this.path}" has an unknown field "${key}" for type "${type}".`,
+                );
             }
         }
 
@@ -137,7 +220,24 @@ export class Hks {
         try {
             address = utils.dehexify(addressField.value);
         } catch {
-            throw new Error(`Hook "${name}" at line ${addressField.line} in "${this.path}" has an invalid address "${addressField.value}" (expected hexadecimal such as 0x00123456; comments start with "@").`);
+            throw new Error(
+                `Hook "${name}" at line ${addressField.line} in "${this.path}" has an invalid address "${addressField.value}" (expected hexadecimal such as 0x00123456; comments start with "@").`,
+            );
+        }
+
+        if (address < 0) {
+            throw new Error(
+                `Hook "${name}" at line ${addressField.line} in "${this.path}" has an invalid address "${addressField.value}" (expected hexadecimal such as 0x00123456; comments start with "@").`,
+            );
+        }
+
+        if (
+            (type === "hook" || type === "call" || type === "instr") &&
+            address % 4
+        ) {
+            throw new Error(
+                `Hook "${name}" at line ${addressField.line} in "${this.path}" specifies an address that is not aligned to 4`,
+            );
         }
 
         switch (type as HookType) {
@@ -149,49 +249,86 @@ export class Hks {
                     type: "hook",
                     address,
                     symbol: this.resolveField(name, fields.get("symbol")!),
-                    ...(trampoline !== undefined ? { trampoline: this.resolveField(name, fields.get("trampoline")!) } : {}),
+                    ...(trampoline !== undefined
+                        ? {
+                            trampoline: this.resolveField(
+                                name,
+                                fields.get("trampoline")!,
+                            ),
+                        }
+                        : {}),
                 };
             }
 
             case "call":
-                return { name, type: "call", address, symbol: this.resolveField(name, fields.get("symbol")!) };
+                return {
+                    name,
+                    type: "call",
+                    address,
+                    symbol: this.resolveField(name, fields.get("symbol")!),
+                };
 
             case "instr":
-                return { name, type: "instr", address, instruction: fields.get("instruction")!.value };
+                return {
+                    name,
+                    type: "instr",
+                    address,
+                    instruction: fields.get("instruction")!.value,
+                };
 
             case "data": {
                 const data = fields.get("data")!;
 
-                return { name, type: "data", address, data: this.parseDataBytes(data.value, data.line) };
+                return {
+                    name,
+                    type: "data",
+                    address,
+                    data: this.parseDataBytes(data.value, data.line),
+                };
             }
         }
     }
 
     /** resolveSymbol with the hook name and line attached, so a mangling failure says WHICH hook. */
-    private resolveField(hookName: string, field: RawField): string {
+    private resolveField(hookName: string, field: RawField): HookSymbol {
         try {
             return this.resolveSymbol(field.value);
         } catch (error) {
-            throw new Error(`Hook "${hookName}" at line ${field.line} in "${this.path}" has a symbol that could not be resolved ("${field.value}"):\n${error instanceof Error ? error.message : String(error)}`);
+            throw new Error(
+                `Hook "${hookName}" at line ${field.line} in "${this.path}" has a symbol that could not be resolved (Invalid Syntax) ("${field.value}"):\n${
+                    error instanceof Error ? error.message : String(error)
+                }`,
+            );
         }
     }
 
-    private resolveSymbol(value: string): string {
-        for (const directive of [NOMANGLE_DIRECTIVE, CONSTRUCTOR_DIRECTIVE]) {
-            if (!value.startsWith(directive)) continue;
-
-            const rest = value.slice(directive.length).trim();
-
-            if (!rest) {
-                throw new Error(`Expected a symbol name after "${directive}" in "${this.path}": "${value}".`);
-            }
-
-            return directive === NOMANGLE_DIRECTIVE ? rest : ensureMangled(rest, true);
+    /** Mangled is checked first: "_ZN3FooC1Ev" is also a valid C name. Constructors mangle to C1 by default. */
+    private resolveSymbol(value: string): HookSymbol {
+        if (titanio.isMangledCppSignature(value)) {
+            return { symbol: value, type: "mangled", source: value };
         }
 
-        return ensureMangled(value);
+        if (titanio.isCFunctionName(value)) {
+            return { symbol: value, type: "c", source: value };
+        }
+
+        if (titanio.isCppFunctionSignature(value)) {
+            return {
+                symbol: titanio.mangle(value),
+                type: "c++",
+                source: value,
+            };
+        }
+
+        throw new Error(
+            `"${value}" is not a C function name, a mangled C++ symbol or a C++ function signature.`,
+        );
     }
 
+    /**
+     * Parses a `data` field: hex tokens (each optionally `0x`-prefixed) that
+     * are joined together, so `"DEAD BEEF"` and `"0xDE 0xAD 0xBE 0xEF"` are the same.
+     */
     private parseDataBytes(value: string, line: number): Uint8Array {
         const combined = value
             .split(/\s+/)
@@ -200,11 +337,15 @@ export class Hks {
             .join("");
 
         if (combined.length === 0 || !/^[0-9a-fA-F]*$/.test(combined)) {
-            throw new Error(`Invalid data bytes at line ${line} in "${this.path}": "${value}".`);
+            throw new Error(
+                `Invalid data bytes at line ${line} in "${this.path}": "${value}".`,
+            );
         }
 
         if (combined.length % 2 !== 0) {
-            throw new Error(`Data bytes at line ${line} in "${this.path}" must combine into a whole number of bytes (even hex digit count): "${value}".`);
+            throw new Error(
+                `Data bytes at line ${line} in "${this.path}" must combine into a whole number of bytes (even hex digit count): "${value}".`,
+            );
         }
 
         const bytes = new Uint8Array(combined.length / 2);

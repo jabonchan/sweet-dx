@@ -3,12 +3,15 @@ import { deeplevel } from "../deps.ts";
 export const MAGIC_STRING = "NSO0";
 export const HEADER_SIZE = 0x100;
 export const MODULE_NAME_OFFSET = 0x100;
+// The module name written right after the header is a single NUL byte (an empty name).
 export const MODULE_NAME_SIZE = 1;
 export const TOTAL_HEADER_SIZE = HEADER_SIZE + MODULE_NAME_SIZE;
 export const BUILD_ID_SIZE = 0x20;
 
+// Hash checks on for all three segments, compression off (see `NSOFlag`).
 export const FLAGS = 0b00111000;
 
+/** Header offsets of the fields written once when the NSO is created. */
 export const FIXED_OFFSETS = {
     magic: 0x00,
     flags: 0x0C,
@@ -19,9 +22,18 @@ export const FIXED_OFFSETS = {
 
 export type NSOSectionName = ".text" | ".ro" | ".data";
 
-export const SECTION_ORDER: readonly NSOSectionName[] = [".text", ".ro", ".data"];
+/** Order the segments appear in the file, and the order they must be written in. */
+export const SECTION_ORDER: readonly NSOSectionName[] = [
+    ".text",
+    ".ro",
+    ".data",
+];
 
-export const SECTION_OFFSETS: Record<NSOSectionName, { fileOffset: number; size: number; fileSize: number; hash: number }> = {
+/** Header offsets of each segment's file offset, sizes and SHA-256 hash. */
+export const SECTION_OFFSETS: Record<
+    NSOSectionName,
+    { fileOffset: number; size: number; fileSize: number; hash: number }
+> = {
     ".text": { fileOffset: 0x10, size: 0x18, fileSize: 0x60, hash: 0xA0 },
     ".ro": { fileOffset: 0x20, size: 0x28, fileSize: 0x64, hash: 0xC0 },
     ".data": { fileOffset: 0x30, size: 0x38, fileSize: 0x68, hash: 0xE0 },
@@ -39,6 +51,7 @@ export type NSOProperty =
     | "dynsymOffset"
     | "dynsymSize";
 
+/** Header offsets of the values that must be set with `NSO.setProperty()`. */
 export const PROPERTY_OFFSETS: Record<NSOProperty, number> = {
     textMemoryOffset: 0x14,
     roMemoryOffset: 0x24,
@@ -75,8 +88,10 @@ export const HASH_FLAGS: Record<NSOSectionName, NSOFlag> = {
     ".data": NSOFlag.DataHash,
 };
 
-const U8Array = (length: number) => new deeplevel.NativeArray({ length, type: "u8" });
+const U8Array = (length: number) =>
+    new deeplevel.NativeArray({ length, type: "u8" });
 
+/** Full layout of the NSO header, used when parsing an existing NSO. */
 export const NSO_HEADER = new deeplevel.Struct({
     endianness: deeplevel.types.Endianness.Little,
     align: deeplevel.types.Alignment.Packed,

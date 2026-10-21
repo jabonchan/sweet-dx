@@ -8,7 +8,10 @@ export const NSMBUDX_SUBSDK_ADDR = NSMBUDX_NSO_ADDR_START +
 export const NSMBUDX_BUILD_ID = "AEE6DCCC06D9C05B42061E2019123A61";
 export const NSMBUDX_TITLE_ID = "0100EA80032EA000";
 
-export const NSMBUDX_EXEFS_PATH = `./atmosphere/contents/${NSMBUDX_TITLE_ID}/exefs`;
-export const NSMBUDX_EXEFS_PATCHES_PATH = `./atmosphere/exefs_patches/${NSMBUDX_TITLE_ID}`;
-export const NSMBUDX_IPS_PATH = NSMBUDX_EXEFS_PATCHES_PATH + "/" + NSMBUDX_BUILD_ID + ".ips";
-export const NSMBUDX_SUBSDK0_PATH = NSMBUDX_EXEFS_PATH + "/subsdk0";
+export const NSMBUDX_EXEFS_PATH =
+    `./atmosphere/contents/${NSMBUDX_TITLE_ID}/exefs`;
+export const NSMBUDX_EXEFS_PATCHES_PATH =
+    `./atmosphere/exefs_patches/${NSMBUDX_TITLE_ID}`;
+export const NSMBUDX_IPS_PATH =
+    `${NSMBUDX_EXEFS_PATCHES_PATH}/${NSMBUDX_BUILD_ID}.ips`;
+export const NSMBUDX_SUBSDK0_PATH = `${NSMBUDX_EXEFS_PATH}/subsdk0`;

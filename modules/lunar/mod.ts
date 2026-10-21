@@ -1,1 +1,1 @@
-export * from "./lib/ips-patch.ts"
+export * from "./lib/ips-patch.ts";

@@ -1,11 +1,17 @@
 import { way } from "../deps.ts";
 import { existsAsDirectory } from "./exists.ts";
 
+/**
+ * Recursively lists every file under `path`, skipping symlinks.
+ * Results are appended to `array`, which is also returned.
+ */
 export function listFiles(path: string, array: way.ParsedPath[] = []) {
     path = way.normalize(path);
 
     if (way.isRelative(path)) path = way.join(way.cwd(), path);
-    if (!existsAsDirectory(path)) throw new Error("Invalid directory for read: " + path);
+    if (!existsAsDirectory(path)) {
+        throw new Error("Invalid directory for read: " + path);
+    }
 
     for (const entry of Deno.readDirSync(path)) {
         const entrypath = way.join(path, entry.name);

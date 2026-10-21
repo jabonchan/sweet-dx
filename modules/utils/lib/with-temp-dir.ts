@@ -1,34 +1,30 @@
-import { way } from "../deps.ts"
-
-function sleepSync(ms: number): void {
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-}
+import { attempt } from "./attempt.ts";
+import { way } from "../deps.ts";
 
 /**
- * Removes a temp directory without ever throwing. On Windows a file that is
- * still open (or being scanned by antivirus) makes removal fail; throwing from a
- * `finally` would replace the real build error with a confusing "access denied".
+ * Creates a temporary directory, runs `callback` with its path and removes the
+ * directory afterwards, even if `callback` throws.
  */
-function removeQuietly(dir: string, attempts = 5): void {
-    for (let i = 0; i < attempts; i++) {
-        try {
-            Deno.removeSync(dir, { recursive: true });
-            return;
-        } catch (error) {
-            if (error instanceof Deno.errors.NotFound) return;
-            if (i < attempts - 1) sleepSync(100 * (i + 1));
-        }
-    }
-
-    console.warn(`SweetDX: could not remove temporary directory "${dir}". It is safe to delete manually.`);
-}
-
-export function withTempDir<T extends unknown>(callback: (dirpath: string) => T): T {
-    const dir = way.normalize(Deno.makeTempDirSync({ suffix: Math.random().toString(), prefix: "Deno-Temp" }));
+export function withTempDir<T extends unknown>(
+    callback: (dirpath: string) => T,
+): T {
+    const dir = way.normalize(
+        Deno.makeTempDirSync({
+            suffix: Math.random().toString(),
+            prefix: "SweetDX-Temp-",
+        }),
+    );
+    let result: T;
 
     try {
-        return callback(dir);
+        result = callback(dir);
     } finally {
-        removeQuietly(dir);
+        attempt(
+            () => Deno.removeSync(dir, { recursive: true }),
+            () => {},
+            "Failed to delete temporary SweetDX directory",
+        );
     }
+
+    return result;
 }

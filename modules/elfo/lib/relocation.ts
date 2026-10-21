@@ -1,5 +1,6 @@
 import type { ElfSection } from "./section.ts";
 
+/** A single relocation entry. `addend` is `null` for `SHT_REL` entries. */
 export class ElfRelocation {
     constructor(
         public readonly offset: bigint,
@@ -10,6 +11,7 @@ export class ElfRelocation {
     ) {}
 }
 
+/** A relocation section together with its parsed entries. */
 export class ElfRelocationSection {
     constructor(
         public readonly section: ElfSection,

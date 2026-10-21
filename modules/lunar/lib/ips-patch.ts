@@ -3,39 +3,104 @@ import { archivo, utils } from "../deps.ts";
 const IPSMAG = utils.encode("PATCH");
 const IPSEND = utils.encode("EOF");
 
+/** A single IPS record: bytes to write at a file offset. */
 export interface Patch {
-    address: number,
-    data: Uint8Array
+    address: number;
+    data: Uint8Array;
 }
 
+/** Builds an IPS patch file from a list of non-overlapping records. */
 export class IPSPatch {
     private patches: Patch[] = [];
-    constructor() {};
+    private closed: boolean = false;
 
+    constructor() {}
+
+    /** Number of records added so far. */
     get count(): number {
         return this.patches.length;
     }
 
-    addPatch(patch: Patch): void {
-        if (!Number.isInteger(patch.address) || patch.address < 0 || patch.address > 0x00FFFFFF)
-            throw new Error("Invalid IPS address patch range (0x00000000 - 0x00FFFFFF): " + utils.hexify(patch.address));
+    /** Checks whether two records write to any of the same bytes. */
+    static doPatchesOverlap(a: Patch, b: Patch): boolean {
+        const startA = a.address;
+        const endA = a.address + a.data.byteLength;
 
-        // In the IPS format a record size of 0 means "RLE record": the next 3 bytes would be
-        // misread as a run length and a fill value, corrupting every record after it.
-        if (patch.data.byteLength === 0)
-            throw new Error("An IPS patch cannot have empty data (a size of 0 is the RLE marker): " + utils.hexify(patch.address));
+        const startB = b.address;
+        const endB = b.address + b.data.byteLength;
 
-        if (patch.data.byteLength > 0x0000FFFF)
-            throw new Error("The IPS patch data is too large (0x0000FFFF): " + utils.hexify(patch.data.byteLength));
-
-        if (patch.address === 0x454F46)
-            throw new Error("0x00454F46 ('EOF') is a reserved IPS address: a record starting there would be read as the end of the patch. Start the patch a few bytes earlier or later.");
-
-        this.patches.push(patch);
+        return startA < endB && startB < endA;
     }
 
-    writeToNewFile(path: string): void {
-        // Build the whole file in memory and write it once (was: stat + seek + write per record).
+    /**
+     * Adds a record after checking it fits the IPS format (24-bit address,
+     * 16-bit non-zero size) and doesn't overlap any existing record.
+     */
+    addPatch(patch: Patch): void {
+        if (this.closed) {
+            throw new Error(
+                "Trying to add patch to already-closed IPSPatch object",
+            );
+        }
+
+        if (
+            !Number.isInteger(patch.address) || patch.address < 0 ||
+            patch.address > 0x00FFFFFF
+        ) {
+            throw new Error(
+                "Invalid IPS address patch range (0x00000000 - 0x00FFFFFF): " +
+                    utils.hexify(patch.address),
+            );
+        }
+
+        if (patch.data.byteLength === 0) {
+            throw new Error(
+                "An IPS patch cannot have empty data (a size of 0 is the RLE marker): " +
+                    utils.hexify(patch.address),
+            );
+        }
+
+        if (patch.data.byteLength > 0x0000FFFF) {
+            throw new Error(
+                "The IPS patch data is too large (0x0000FFFF): " +
+                    utils.hexify(patch.data.byteLength),
+            );
+        }
+
+        if (patch.address === 0x454F46) {
+            throw new Error(
+                "0x00454F46 ('EOF') is a reserved IPS address: a record starting there would be read as the end of the patch. Start the patch a few bytes earlier or later.",
+            );
+        }
+
+        const overlappingPatch = this.patches.find((existingPatch) =>
+            IPSPatch.doPatchesOverlap(existingPatch, patch)
+        );
+
+        if (overlappingPatch) {
+            throw new Error(
+                `Patches overlap at ${utils.hexify(overlappingPatch.address)}-${
+                    utils.hexify(
+                        overlappingPatch.address +
+                            overlappingPatch.data.byteLength - 1,
+                    )
+                } and ${utils.hexify(patch.address)}-${
+                    utils.hexify(patch.address + patch.data.byteLength - 1)
+                }`,
+            );
+        }
+
+        this.patches.push({
+            address: patch.address,
+            data: new Uint8Array(patch.data),
+        });
+    }
+
+    /**
+     * Serializes every record (`PATCH`, then 3-byte address + 2-byte size +
+     * data per record, then `EOF`) to `path`. No more records can be added after.
+     */
+    saveAndClose(path: string): void {
         let size = IPSMAG.length + IPSEND.length;
 
         for (const patch of this.patches) size += 5 + patch.data.byteLength;
@@ -59,14 +124,12 @@ export class IPSPatch {
 
         out.set(IPSEND, offset);
 
-        const file = new archivo.Archivo(path);
+        const file = new archivo.Archivo(path, { empty: true });
 
         try {
-            // Archivo opens without truncating and we write at offset 0: a pre-existing longer
-            // file would otherwise keep stale bytes after the "EOF" marker.
-            file.handle.truncateSync(0);
-            file.writeAt(0, out);
+            file.writeAt(0x00, out);
         } finally {
+            this.closed = true;
             file.close();
         }
     }

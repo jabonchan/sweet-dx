@@ -1,13 +1,41 @@
 import { deeplevel } from "../deps.ts";
 import * as defs from "./definitions.ts";
 
-export function getCorrectStructs(bits: defs.Bits, endian: deeplevel.types.Endianness): {
-    Ehdr: typeof defs.Ehdr32_LE | typeof defs.Ehdr32_BE | typeof defs.Ehdr64_LE | typeof defs.Ehdr64_BE;
-    Phdr: typeof defs.PHDR32LE | typeof defs.PHDR32BE | typeof defs.PHDR64LE | typeof defs.PHDR64BE;
-    Shdr: typeof defs.Shdr32_LE | typeof defs.Shdr32_BE | typeof defs.Shdr64_LE | typeof defs.Shdr64_BE;
-    Sym: typeof defs.Sym32_LE | typeof defs.Sym32_BE | typeof defs.Sym64_LE | typeof defs.Sym64_BE;
-    Rela: typeof defs.Rela32_LE | typeof defs.Rela32_BE | typeof defs.Rela64_LE | typeof defs.Rela64_BE;
-    Rel: typeof defs.Rel32_LE | typeof defs.Rel32_BE | typeof defs.Rel64_LE | typeof defs.Rel64_BE;
+/** Picks the header/symbol/relocation struct layouts matching the ELF's class and endianness. */
+export function getCorrectStructs(
+    bits: defs.Bits,
+    endian: deeplevel.types.Endianness,
+): {
+    Ehdr:
+        | typeof defs.Ehdr32_LE
+        | typeof defs.Ehdr32_BE
+        | typeof defs.Ehdr64_LE
+        | typeof defs.Ehdr64_BE;
+    Phdr:
+        | typeof defs.PHDR32LE
+        | typeof defs.PHDR32BE
+        | typeof defs.PHDR64LE
+        | typeof defs.PHDR64BE;
+    Shdr:
+        | typeof defs.Shdr32_LE
+        | typeof defs.Shdr32_BE
+        | typeof defs.Shdr64_LE
+        | typeof defs.Shdr64_BE;
+    Sym:
+        | typeof defs.Sym32_LE
+        | typeof defs.Sym32_BE
+        | typeof defs.Sym64_LE
+        | typeof defs.Sym64_BE;
+    Rela:
+        | typeof defs.Rela32_LE
+        | typeof defs.Rela32_BE
+        | typeof defs.Rela64_LE
+        | typeof defs.Rela64_BE;
+    Rel:
+        | typeof defs.Rel32_LE
+        | typeof defs.Rel32_BE
+        | typeof defs.Rel64_LE
+        | typeof defs.Rel64_BE;
 } {
     const is32 = bits === 32;
     const isLittle = endian === deeplevel.types.Endianness.Little;
@@ -34,26 +62,40 @@ export function getCorrectStructs(bits: defs.Bits, endian: deeplevel.types.Endia
     };
 }
 
-export function decodeRelocationInfo(bits: defs.Bits, info: bigint): { symbolIndex: number; type: number } {
+/** Splits a relocation's `r_info` into symbol index and type, which are packed differently for 32 and 64-bit. */
+export function decodeRelocationInfo(
+    bits: defs.Bits,
+    info: bigint,
+): { symbolIndex: number; type: number } {
     if (bits === 32) {
         const n = Number(info);
         return { symbolIndex: (n >>> 8) & 0xFFFFFF, type: n & 0xFF };
     }
 
-    return { symbolIndex: Number(info >> 32n), type: Number(info & 0xFFFFFFFFn) };
+    return {
+        symbolIndex: Number(info >> 32n),
+        type: Number(info & 0xFFFFFFFFn),
+    };
 }
 
+/** Struct fields may come back as numbers or bigints depending on their size; this normalizes them. */
 export function toBigInt(value: unknown): bigint {
     return typeof value === "bigint" ? value : BigInt(value as number);
 }
 
+/** Formats a value as lowercase, zero-padded `0x` hex. */
 export function hex(value: number | bigint, width: number = 8): string {
     return "0x" + value.toString(16).padStart(width, "0");
 }
 
+/** Reads a NUL-terminated string from a string table at `offset`. */
 export function readCString(bytes: Uint8Array, offset: number): string {
     if (offset < 0 || offset > bytes.length) {
-        throw new Error(`String table offset ${hex(offset)} is out of bounds for a table of ${bytes.length} bytes.`);
+        throw new Error(
+            `String table offset ${
+                hex(offset)
+            } is out of bounds for a table of ${bytes.length} bytes.`,
+        );
     }
 
     let end = offset;
@@ -62,6 +104,7 @@ export function readCString(bytes: Uint8Array, offset: number): string {
     return new TextDecoder().decode(bytes.subarray(offset, end));
 }
 
+/** Turns section flags into their readelf-style letters (e.g. `WAX`). */
 export function sectionFlagLetters(flags: bigint): string {
     return Object.entries(defs.Short)
         .filter(([, value]) => typeof value === "number")
@@ -70,6 +113,9 @@ export function sectionFlagLetters(flags: bigint): string {
         .join("") || "none";
 }
 
+/** Turns segment flags into `RWE`, with spaces for the unset ones. */
 export function segmentFlagLetters(flags: number): string {
-    return `${flags & 0x4 ? "R" : " "}${flags & 0x2 ? "W" : " "}${flags & 0x1 ? "E" : " "}`;
+    return `${flags & 0x4 ? "R" : " "}${flags & 0x2 ? "W" : " "}${
+        flags & 0x1 ? "E" : " "
+    }`;
 }
