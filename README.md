@@ -28,9 +28,3 @@ SweetDX isn't just a straight port — a few things here you won't find in eithe
 
 # WIP
 So uh, this is WIP currently, should work but expect bugs.
-
-# YOU'RE A VIBE CODER
-No. Only a minimal amount of code was made by AI (Around 5% or 10%) which was used for the module ``revoltijo`` which is just used for mangling and demangling C++ function signatures. And it was mainly to speed up development due to the need of having the app running as soon as possible, and I'll be rewriting the entire module as soon as I can to be human-made as the rest of the code in SweetDX,so no, it's not vibe coding.
-
-# YOUR CODE SKILLS SUCK
-Yeah I had limited time to properly develop SweetDX, but I'll be improving it as time goes by
