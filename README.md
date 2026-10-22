@@ -320,6 +320,38 @@ The idea is to use AI where it makes sense without losing track of how the code
 works or compromising its quality and maintainability. **AI is here to help us
 develop SweetDX, not to replace the people behind it.**
 
+## ⭐ Contributors
+
+<table>
+  <tr>
+    <td>
+      <a href="https://github.com/jabonchan"><img src="https://github.com/jabonchan.png?size=48" width="48" height="48" alt="jabonchan"></a>
+    </td>
+    <td>
+      <a href="https://github.com/jabonchan"><b>jabonchan</b></a><br>
+      <sub>Creator &amp; Developer</sub>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://github.com/Steammaker212"><img src="https://github.com/Steammaker212.png?size=48" width="48" height="48" alt="Steammaker212"></a>
+    </td>
+    <td>
+      <a href="https://github.com/Steammaker212"><b>Steammaker212</b></a><br>
+      <sub>Developer &amp; Tester</sub>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://github.com/mariopossamato"><img src="https://github.com/mariopossamato.png?size=48" width="48" height="48" alt="mariopossamato"></a>
+    </td>
+    <td>
+      <a href="https://github.com/mariopossamato"><b>mariopossamato</b></a><br>
+      <sub>Developer &amp; Tester</sub>
+    </td>
+  </tr>
+</table>
+
 ## 🪙 Credits
 
 SweetDX depends on these projects. Go give them a star!
