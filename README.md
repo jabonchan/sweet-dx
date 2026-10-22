@@ -17,7 +17,7 @@ I made SweetDX while working on Steam's Super Mario Bros. Deluxe, so it's built
 around NSMBU Deluxe specifically. If you want to check out the mod, here's the
 [Discord server](https://discord.gg/aXcz6wbKWk).
 
-## Why not just use LibHakkun or codedx?
+## 🤔 Why not just use LibHakkun or codedx?
 
 You totally can! But SweetDX adds a few things:
 
@@ -234,6 +234,77 @@ Foo_data:
   `DE AD BE EF`, `0xDE 0xAD 0xBE 0xEF` and `DEADBEEF` all mean the same thing.
   It has to add up to whole bytes, and they're written in the exact order you
   give them, so endianness is on you.
+
+## 📦 static_init
+
+**SweetDX** uses the same `crt0` as **codedx**, and that `crt0` doesn't run any
+static initialization by itself (its `_init` just returns). Instead, it ships a
+small stub called `static_init_hook` that calls a `static_init` function **you**
+have to provide. Your project won't link without it.
+
+Your `static_init` is in charge of two things:
+
+- **Pointing the game to your profile list**: it writes the address of your
+  `Profile::spriteToProfileList` into the game's GOT entry for it
+  (`got_spriteToProfileList`, defined in your `.sym` files), so the game reads
+  your table instead of its own.
+- **Running your static constructors**: it calls every function in
+  `.init_array`, between `__init_array_start` and `__init_array_end` (both
+  provided by SweetDX's linker script). These are the constructors of your
+  global C++ objects, and nothing else will run them for you.
+
+Since there's no standard library, you also need to provide `__cxa_atexit` and
+`__dso_handle`. The compiler uses them to register the destructors of global
+objects. The stub below just ignores them, which is fine because those
+destructors would never run anyway.
+
+_Create a `.c` file inside your `source/code/` directory with the following
+contents:_
+
+```c
+extern unsigned int** got_spriteToProfileList;
+extern unsigned int* _ZN7Profile19spriteToProfileListE;
+
+typedef void (*InitFunc)(void);
+extern InitFunc __init_array_start;
+extern InitFunc __init_array_end;
+
+void static_init()
+{
+    got_spriteToProfileList = &_ZN7Profile19spriteToProfileListE;
+
+    for (InitFunc* p = &__init_array_start; p < &__init_array_end; p++)
+        (*p)();
+}
+
+int __cxa_atexit(void (*func)(void*), void* arg, void* d)
+{
+    return 0;
+}
+
+void* __dso_handle = 0;
+```
+
+> **NOTE:**
+> It has to be a `.c` file, because `crt0` calls `static_init` by its
+> plain, unmangled name. If you'd rather use a `.cpp` file, wrap everything in
+> `extern "C" { ... }`.
+
+Lastly, the game has to actually run `static_init_hook`, so you need a hook for
+it. It replaces the end of a game function that runs during startup, after the
+game's own static constructors, so yours always run after the game's. The stub
+calls your `static_init`, then executes the overwritten code and returns to the
+game as normal.
+
+_Create a hook file inside your `source/hooks/` directory with the following
+contents:_
+
+```
+static_init:
+    type:      hook
+    address:   0x0000019C
+    symbol:    static_init_hook
+```
 
 ## 🤖 AI Usage Disclaimer
 
