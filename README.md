@@ -1,3 +1,23 @@
+## Dear reader
+
+```
+I understand a lot of people don't like this project, I have received a lot of hate due to this.
+If you don't like it it's okey I won't try to convince you otherwise but _please_ just remember there's
+a real person behind this project, behind the screen. Your comments may take seconds to be published,
+but what they say takes a lot of time to get off my back and mind.
+
+Shaming on a project just because it uses TypeScript... Just because better tools exist...
+All that doesn't means something didn't took a lot of effort. And if you're concerned about the AI thing,
+take just a few seconds to read the section at the end, this is not a vibe coded project, using ai as assistant/helper doesn't
+equals vibecoding. Vibecoding is literally having the entire AI do your job, not read it, don't analyze it,
+don't setup tests, don't review it, don't modify it to fix bugs, and all that. THAT is vibecoding, which, on
+**MY PERSONAL PROJECTS**, is never the case.
+
+I have never attempted to steal someone's work, you can clearly see I credit every single person in here.
+With all that said, it's still up to you what you think about this project, but please, just pleose,
+think about the harm your words may cause before saying them.
+```
+
 # ✨ SweetDX 🧁
 
 _A sweeter way to mod Deluxe._
@@ -19,13 +39,8 @@ around NSMBU Deluxe specifically. If you want to check out the mod, here's the
 
 ## 🤔 Why not just use LibHakkun or codedx?
 
-You totally can! But SweetDX adds a few things:
+You totally can! It's a matter of personal preference. However I can mention:
 
-- **Trampolines are generated for you.** If a hook needs to call the original
-  function, SweetDX writes the trampoline stub itself. No hand-written assembly.
-- **It runs on Windows.** LibHakkun and codedx need Linux (or WSL, or a VM).
-  SweetDX runs on Deno, so it works on Windows directly. macOS and Linux should
-  work too, I just haven't tested them yet.
 - **Less setup than codedx.** You only need a few programs in your `PATH` (see
   below). No Python environment, no extra build scripts.
 
