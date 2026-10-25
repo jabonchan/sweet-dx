@@ -1,6 +1,6 @@
 import * as defs from "./definitions.ts";
 
-/** A symbol table entry. */
+/** A symbol table entry */
 export class ElfSymbol {
     constructor(
         public readonly index: number,
@@ -13,7 +13,7 @@ export class ElfSymbol {
         public readonly size: bigint,
     ) {}
 
-    /** Whether the symbol is defined elsewhere (section index `SHN_UNDEF`). */
+    /** Whether the symbol is defined elsewhere (section index `SHN_UNDEF`) */
     get isUndefined(): boolean {
         return this.sectionIndex === defs.SHN.UNDEF;
     }

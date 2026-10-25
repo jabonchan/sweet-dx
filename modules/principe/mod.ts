@@ -1,22 +1,13 @@
 import { $, child_process, type shexec } from "./deps.ts";
 
-/**
- * Tagged template that parses a command line, runs it synchronously and returns
- * its output. Fails if the syntax is invalid or the executable can't be run.
- */
-export function exec(
-    template: TemplateStringsArray,
-    ...substitutions: shexec.ShexecSubstitution
-) {
+/** Parses a command line, runs it synchronously and returns its output */
+export function exec(template: TemplateStringsArray, ...substitutions: shexec.ShexecSubstitution) {
     let parsed: { executable: string; arguments: string[] };
 
     try {
         parsed = $.parse(template, ...substitutions);
     } catch {
-        throw new Error(
-            "Invalid command line syntax: " +
-                String.raw(template, ...substitutions),
-        );
+        throw new Error("Invalid command line syntax: " + String.raw(template, ...substitutions));
     }
 
     const output = child_process.spawnSync(
@@ -27,15 +18,10 @@ export function exec(
     );
 
     if (output.error) {
-        if ((output.error as unknown as { code: string }).code === "ENOENT") {
-            throw new Error(
-                `Could not find an executable named "${parsed.executable}"`,
-            );
-        }
+        if ((output.error as unknown as { code: string }).code === "ENOENT")
+            throw new Error(`Could not find an executable named "${parsed.executable}"`);
 
-        throw new Error(
-            `Failed to execute ${parsed.executable} due to ${output.error.message}`,
-        );
+        throw new Error(`Failed to execute ${parsed.executable} due to ${output.error.message}`);
     }
 
     return output;

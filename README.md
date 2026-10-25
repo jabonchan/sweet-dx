@@ -1,6 +1,12 @@
-# ✨ SweetDX 🧁
-
-_A sweeter way to mod Deluxe._
+<h1 align="center">✨ SweetDX 🧁</h1>
+<p align="center"><i>A sweeter way to mod Deluxe.</i></p>
+<div align="center">
+    <img alt="switch" height="46" src="https://github.com/user-attachments/assets/f339e2a9-146c-42be-85f8-31a32af5999a">
+    <a href="https://discord.gg/RGcRsVkP8z">
+      <img alt="discord" height="46" src="https://github.com/user-attachments/assets/ce08f78a-d435-4dd5-9e4a-a47659f57b5b">
+    </a>
+</div>
+<br />
 
 SweetDX is a toolchain for modding **New Super Mario Bros. U Deluxe v1.0.0**,
 written in Deno/TypeScript. It's a port of
@@ -21,13 +27,10 @@ around NSMBU Deluxe specifically. If you want to check out the mod, here's the
 
 You totally can! But SweetDX adds a few things:
 
-- **Trampolines are generated for you.** If a hook needs to call the original
-  function, SweetDX writes the trampoline stub itself. No hand-written assembly.
-- **It runs on Windows.** LibHakkun and codedx need Linux (or WSL, or a VM).
-  SweetDX runs on Deno, so it works on Windows directly. macOS and Linux should
-  work too, I just haven't tested them yet.
 - **Less setup than codedx.** You only need a few programs in your `PATH` (see
   below). No Python environment, no extra build scripts.
+- **Improved file formats.** The file formats `.sym` and `.hks` have been reworked
+  to be more user-friendly and readable.
 
 ## ⚠️ Disclaimer
 
@@ -59,6 +62,117 @@ A couple of notes:
 - `c++filt` is run with `-n` so it doesn't strip the leading underscore from
   mangled names. Some macOS versions do that by default.
 
+## 🔨 Compiling
+
+If you'd rather build SweetDX yourself instead of downloading a release, you
+only need [Deno](https://deno.com). Clone the repository and run one of the
+tasks from `deno.json` inside it:
+
+| Task                                  | Platform | Architecture | Binary                              |
+| ------------------------------------- | -------- | ------------ | ----------------------------------- |
+| `deno task compile-windows-x86_64`    | Windows  | x86_64       | `build/sweetdx-x86_64-windows.exe`  |
+| `deno task compile-windows-aarch64`   | Windows  | AArch64      | `build/sweetdx-arch64-windows.exe`  |
+| `deno task compile-linux-x86_64`      | Linux    | x86_64       | `build/sweetdx-x86_64-linux`        |
+| `deno task compile-linux-aarch64`     | Linux    | AArch64      | `build/sweetdx-arch64-linux`        |
+| `deno task compile-macos-x86_64`      | macOS    | x86_64       | `build/sweetdx-x86_64-macos`        |
+| `deno task compile-macos-aarch64`     | macOS    | AArch64      | `build/sweetdx-arch64-macos`        |
+| `deno task compile-windows`           | Windows  | Both         | Both Windows binaries               |
+| `deno task compile-linux`             | Linux    | Both         | Both Linux binaries                 |
+| `deno task compile-macos`             | macOS    | Both         | Both macOS binaries                 |
+| `deno task compile`                   | All      | Both         | All six binaries                    |
+
+A couple of notes:
+
+- Deno can cross-compile, so you can build every binary from any platform. No
+  need to own a Mac to get the macOS ones.
+- Pick the AArch64 binary for ARM machines (Apple Silicon Macs, Windows on ARM,
+  ARM Linux) and the x86_64 one for everything else.
+- The `assets/` folder (`crt0`, linker scripts, etc.) is embedded into the
+  binary, so you only need the binary itself to use SweetDX.
+- The examples in this README call it `sweetdx`. If you want to do the same,
+  rename your binary to `sweetdx` (`sweetdx.exe` on Windows) and put it
+  somewhere in your `PATH`.
+
+## 🧪 Running Tests
+
+If you're changing SweetDX itself, you can make sure you didn't break anything
+by running the tests. Inside the repository, run:
+
+```
+deno task test
+```
+
+## 💻 Command Line
+
+SweetDX is used from the terminal. Running `sweetdx --help` shows this:
+
+```
+sweet-dx v0.0.4 by @jabonchan
+
+Usage:
+  sweetdx --source=<dir> --output=<path> --log-file=<path> [--verbose]
+  sweetdx --init=<path>
+  sweetdx --help
+  sweetdx --version
+
+Example:
+  sweetdx --output=./output --log-file=debug.log --source=./source
+
+Compile:
+  --source=<dir>      Directory containing the source files to compile
+  --output=<path>     Where to write the compiled binary and patch (must not exist yet)
+  --log-file=<path>   Where to write the compilation log (must not exist yet)
+  --verbose           Prints the compilation log to the terminal too
+
+Other:
+  --init=<path>       Create a new project at <path> (must not exist yet)
+  --help              Show this help message and exit
+  --version           Print the version number and exit
+
+Notes:
+  Flags that take a value must use the form --flag=value.
+  --help, --version and --init can't be combined with other flags.
+```
+
+### Creating a project
+
+`--init` creates an empty project with all the folders SweetDX expects:
+
+```
+sweetdx --init=./source
+```
+
+```
+source
+  |
+  |- code     Your .cpp, .c and .s files go here
+  |- hooks    Your .hks files go here
+  |- include  Your .hpp and .h files go here
+  |- nso      Your main (NSMBUDX main.nso) goes here
+  -- symbols  Your .sym files go here
+```
+
+The path can't exist yet, but its parent directory has to.
+
+### Compiling your mod
+
+Once your code, hooks, symbols and `main` are in place, point `--source` to
+your project and tell SweetDX where to put the result and the log:
+
+```
+sweetdx --source=./source --output=./output --log-file=debug.log
+```
+
+- `--source`, `--output` and `--log-file` are all required. The order doesn't
+  matter.
+- `--output` and `--log-file` can't exist yet, but their parent directories
+  have to. This way SweetDX never overwrites anything by accident.
+- If compilation fails, the `--output` folder is removed, so you can just run
+  the same command again once you fix it. The log is kept so you can check what
+  went wrong.
+- Add `--verbose` if you want to see the log in your terminal while it compiles.
+  It's still written to `--log-file` either way.
+
 ## 📄 File Formats
 
 SweetDX reads two kinds of files: `.sym` files, which tell it where things are
@@ -71,25 +185,43 @@ Addresses in both formats are hexadecimal (like `0x0025CF50`).
 ### `.sym` files
 
 A `.sym` file is a list of symbols that already exist in the game, so your code
-can use them. It looks like this:
+can use them. They can be mangled C++ signatures, C++ entities, calls, or plain
+C identifiers. It looks like this:
 
 ```
+# got entries
+got_main_crt0 = 0x00C61A00;
+got_spriteToProfileList = 0x00C61B18;
+
+# cxa
+__cxa_guard_acquire = 0x009AD3E8;
+__cxa_guard_release = 0x009AD3F4;
+
 # Math
-_Z3sinf = 0x009AD484;
-_Z3cosf = 0x009AD478;
-
-# new/delete/malloc/free
-_Znwj = 0x008DE044;
-malloc = 0x00835108;
+sin(float) = 0x009AD484;
+cos(float) = 0x009AD478;
+tan(float) = 0x009AD520;
+asin(float) = 0x009AE918;
+acos(float) = 0x009AD46C;
+atan2(float, float) = 0x009AD544;
+exp(float) = 0x009AE93C;
+log(float) = 0x009AE930;
+pow(float, float) = 0x009AD6B8;
+sqrt(float) = 0x009AD43C;
+fmod(float, float) = 0x009AD52C;
 ```
 
-- Each line is `name = address;`. The `;` at the end is optional.
-- The name is exactly what the linker sees. C++ functions and variables have to
-  be written mangled (`_Z3sinf`, not `sin(float)`), while C ones are just their
-  name.
+- Each line is `name/symbol = address;`. The `;` at the end is optional.
+- The name/symbol can be a mangled/demangled C++ entity/call signature,
+  or a plain C identifier.
 - `#` starts a comment that goes until the end of the line. Empty lines are
   ignored.
-- A name can only be defined once per file.
+- A name/symbol can only be defined once per file.
+- In the case of C++ call signatures, if they are a destructor or constructor
+  is mandatory that you define which variant they use by using the following
+  syntaxis: `name/symbol as VARIANT = address;`, where `VARIANT` can be `C1`,
+  `C2` or `C3` for constructors, while in the case of destructors they can be
+  `D0`, `D1` or `D2`. 
 
 When compiling, every `.sym` file is turned into a linker script. That means you
 just declare the function or variable in your headers like you normally would,
@@ -319,6 +451,8 @@ add automated tests to catch potential bugs.
 The idea is to use AI where it makes sense without losing track of how the code
 works or compromising its quality and maintainability. **AI is here to help us
 develop SweetDX, not to replace the people behind it.**
+
+##### **In case you're curious, AI was used only for documentation, coding style formatting, automated tests and part of the titanio module. Everything where AI contributed was tested, checked and reviewed by humans. The rest of the project? Entirely made by humans. Whenever that counts as vibecoding or not is up to you 😉**
 
 ## ⭐ Contributors
 

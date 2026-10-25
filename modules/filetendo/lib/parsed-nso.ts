@@ -1,9 +1,9 @@
-import { archivo, utils } from "../deps.ts";
 import { NSOSegment } from "./nso-segment.ts";
-import * as helpers from "./helpers.ts";
+import { archivo, utils } from "../deps.ts";
 import * as defs from "./definitions.ts";
+import * as helpers from "./helpers.ts";
 
-/** A read-only view of an existing NSO file (like the game's `main`). */
+/** A read-only view of an existing NSO file (like the game's `main`) */
 export class ParsedNSO {
     public readonly file: archivo.Archivo;
 
@@ -26,33 +26,20 @@ export class ParsedNSO {
     public readonly ro: NSOSegment;
     public readonly data: NSOSegment;
 
-    private readonly segmentsByName: ReadonlyMap<
-        defs.NSOSectionName,
-        NSOSegment
-    >;
+    private readonly segmentsByName: ReadonlyMap<defs.NSOSectionName, NSOSegment>;
 
-    /** Opens and parses the header of the NSO at `path`. Segments are read lazily. */
+    /** Opens and parses the header of the NSO at `path`. Segments are read lazily */
     constructor(public readonly path: string) {
-        // Read-only: the game's main must never be created, modified or require write access.
+        // Read-only: the game's main must never be created, modified or require write access
         this.file = new archivo.Archivo(path, { readOnly: true });
 
         try {
             const magicBytes = utils.encode(defs.MAGIC_STRING);
 
-            if (
-                !utils.compareBuffers(
-                    magicBytes,
-                    this.file.readAt(0x00, magicBytes.length),
-                )
-            ) {
-                throw new Error(
-                    `Invalid NSO file "${this.path}": incorrect magic number.`,
-                );
-            }
+            if (!utils.compareBuffers(magicBytes, this.file.readAt(0x00, magicBytes.length)))
+                throw new Error(`Invalid NSO file "${this.path}": incorrect magic number.`);
 
-            const header = defs.NSO_HEADER.unpack(
-                this.file.readAt(0x00, defs.NSO_HEADER.byteLength).buffer,
-            );
+            const header = defs.NSO_HEADER.unpack(this.file.readAt(0x00, defs.NSO_HEADER.byteLength).buffer);
 
             this.version = header.version;
             this.flags = header.flags;
@@ -105,11 +92,7 @@ export class ParsedNSO {
                 new Uint8Array(header.dataHash),
             );
 
-            this.segmentsByName = new Map([
-                [".text", this.text],
-                [".ro", this.ro],
-                [".data", this.data],
-            ]);
+            this.segmentsByName = new Map([ [ ".text", this.text ], [ ".ro", this.ro ], [ ".data", this.data ] ]);
         } catch (error) {
             // The caller never gets the object, so nobody else could close the file
             this.file.close();
@@ -117,45 +100,37 @@ export class ParsedNSO {
         }
     }
 
-    /** All segments, in file order. */
+    /** All segments, in file order */
     get segments(): readonly NSOSegment[] {
         return defs.SECTION_ORDER.map((name) => this.getSegment(name));
     }
 
-    /** Returns the segment named `name`. */
+    /** Returns the segment named `name` */
     getSegment(name: defs.NSOSectionName): NSOSegment {
         const segment = this.segmentsByName.get(name);
 
-        if (!segment) {
+        if (!segment)
             throw new Error(`Unknown NSO segment "${name}".`);
-        }
 
         return segment;
     }
 
-    /** Returns the module name, without its trailing NULs. */
+    /** Returns the module name, without its trailing NULs */
     getModuleName(): string {
         if (this.moduleNameSize === 0) return "";
 
-        return utils.decode(
-            this.file.readAt(this.moduleNameOffset, this.moduleNameSize),
-        ).replace(/\0+$/, "");
+        return utils.decode(this.file.readAt(this.moduleNameOffset, this.moduleNameSize)).replace(/\0+$/, "");
     }
 
-    /** Reads the 32-bit instruction at `offset` inside `.text`. */
+    /** Reads the 32-bit instruction at `offset` inside `.text` */
     getInstructionAt(offset: number): number {
-        if (offset < 0 || offset % 4 !== 0) {
-            throw new Error(
-                `Instruction offset ${
-                    utils.hexify(offset)
-                } must be a non-negative multiple of 4.`,
-            );
-        }
+        if (offset < 0 || offset % 4 !== 0)
+            throw new Error(`Instruction offset ${utils.hexify(offset)} must be a non-negative multiple of 4.`);
 
         return helpers.readUint32(this.text.readAt(offset, 4));
     }
 
-    /** Closes the underlying file. */
+    /** Closes the underlying file */
     close(): void {
         this.file.close();
     }

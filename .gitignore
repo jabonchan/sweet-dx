@@ -1,8 +1,8 @@
 debug.log
-source
-output
-test.ts
+source/
+output/
 deno.lock
-build
-node_modules
-.vscode
+build/
+node_modules/
+.vscode/
+.projectignore/

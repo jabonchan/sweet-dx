@@ -1,21 +1,9 @@
-import type {
-    CppType,
-    NameSegment,
-    Parameter,
-    ParsedSignature,
-} from "../parsing/types.ts";
-import {
-    qualifiersOf,
-    templateParameterType,
-    withoutQualifiers,
-} from "./cpp-types.ts";
+import type { CppType, NameSegment, Parameter, ParsedSignature } from "../parsing/types.ts";
+import { qualifiersOf, templateParameterType, withoutQualifiers } from "./cpp-types.ts";
 
 type Replacer = (type: CppType) => CppType | null;
 
-/**
- * Function templates: types that depend on a template parameter are encoded as T_, T0_...
- * `keyType` identifies types structurally, so that `inferTemplateParameters` can match them with the template arguments.
- */
+/** Function templates: types that depend on a template parameter are encoded as T_, T0_... */
 export function bindTemplateParameters(
     signature: ParsedSignature,
     last: NameSegment,
@@ -23,10 +11,7 @@ export function bindTemplateParameters(
     keyType: (type: CppType) => string,
 ): { returnType?: CppType; parameters: Parameter[] } {
     const args = last.templateArguments;
-    const result = {
-        returnType: signature.returnType,
-        parameters: signature.parameters,
-    };
+    const result = { returnType: signature.returnType, parameters: signature.parameters };
     let replace: Replacer | null = null;
 
     if (signature.templateParameters.length > 0) {
@@ -40,25 +25,19 @@ export function bindTemplateParameters(
         const names = new Map<string, number>();
 
         signature.templateParameters.forEach((parameter, index) => {
-            if (parameter.isPack) {
+            if (parameter.isPack)
                 throw new Error("Template parameter packs are not supported");
-            }
-            if (parameter.kind === "type" && parameter.name) {
+            if (parameter.kind === "type" && parameter.name)
                 names.set(parameter.name, index);
-            }
         });
 
         replace = (type) => {
             const segments = type.kind === "named" ? type.name.segments : [];
-            const index =
-                segments.length === 1 && segments[0].kind === "identifier" &&
-                    !segments[0].templateArguments
-                    ? names.get(segments[0].text)
-                    : undefined;
+            const index = segments.length === 1 && segments[0].kind === "identifier" && !segments[0].templateArguments
+                ? names.get(segments[0].text)
+                : undefined;
 
-            return index === undefined || type.kind !== "named"
-                ? null
-                : templateParameterType(index, type.qualifiers);
+            return index === undefined || type.kind !== "named" ? null : templateParameterType(index, type.qualifiers);
         };
     } else if (inferTemplateParameters && args) {
         const keys = new Map<string, number>();
@@ -76,9 +55,7 @@ export function bindTemplateParameters(
 
             const index = keys.get(keyType(withoutQualifiers(type)));
 
-            return index === undefined
-                ? null
-                : templateParameterType(index, qualifiersOf(type));
+            return index === undefined ? null : templateParameterType(index, qualifiersOf(type));
         };
     }
 
@@ -87,16 +64,12 @@ export function bindTemplateParameters(
     const rewrite = replace;
 
     return {
-        returnType: result.returnType &&
-            rewriteType(result.returnType, rewrite),
-        parameters: result.parameters.map((parameter) => ({
-            ...parameter,
-            type: rewriteType(parameter.type, rewrite),
-        })),
+        returnType: result.returnType && rewriteType(result.returnType, rewrite),
+        parameters: result.parameters.map((parameter) => ({ ...parameter, type: rewriteType(parameter.type, rewrite) })),
     };
 }
 
-/** Recursively replaces every part of `type` that `replace` returns a new type for. */
+/** Recursively replaces every part of `type` that `replace` returns a new type for */
 function rewriteType(type: CppType, replace: Replacer): CppType {
     const replaced = replace(type);
 
@@ -118,10 +91,7 @@ function rewriteType(type: CppType, replace: Replacer): CppType {
             return {
                 ...type,
                 returnType: type.returnType && rewrite(type.returnType),
-                parameters: type.parameters.map((parameter) => ({
-                    ...parameter,
-                    type: rewrite(parameter.type),
-                })),
+                parameters: type.parameters.map((parameter) => ({ ...parameter, type: rewrite(parameter.type) })),
             };
 
         case "named":
@@ -133,15 +103,9 @@ function rewriteType(type: CppType, replace: Replacer): CppType {
                         segment.templateArguments
                             ? {
                                 ...segment,
-                                templateArguments: segment.templateArguments
-                                    .map((arg) =>
-                                        arg.kind === "type"
-                                            ? {
-                                                ...arg,
-                                                type: rewrite(arg.type),
-                                            }
-                                            : arg
-                                    ),
+                                templateArguments: segment.templateArguments.map((arg) =>
+                                    arg.kind === "type" ? { ...arg, type: rewrite(arg.type) } : arg
+                                ),
                             }
                             : segment
                     ),

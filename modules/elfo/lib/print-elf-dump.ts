@@ -1,10 +1,9 @@
 import { deeplevel, Recuerdo } from "../deps.ts";
-import type { Elf } from "./elf.ts";
-
 import * as defs from "./definitions.ts";
 import * as helpers from "./helpers.ts";
+import type { Elf } from "./elf.ts";
 
-/** Logs a readelf-style dump: header, segments, sections, symbols and relocations. */
+/** Logs a readelf-style dump: header, segments, sections, symbols and relocations */
 export function printElfDump(elf: Elf) {
     const addrWidth = elf.bits === 32 ? 8 : 16;
 
@@ -12,20 +11,10 @@ export function printElfDump(elf: Elf) {
 
     Recuerdo.log("");
     Recuerdo.log("=".repeat(150));
-    Recuerdo.log(
-        `  ELF Header  [ELF${elf.bits} ${
-            elf.endianness === deeplevel.types.Endianness.Little
-                ? "little"
-                : "big"
-        }-endian]`,
-    );
+    Recuerdo.log(`  ELF Header  [ELF${elf.bits} ${elf.endianness === deeplevel.types.Endianness.Little ? "little" : "big"}-endian]`);
     Recuerdo.log("=".repeat(150));
-    Recuerdo.log(
-        `  Type:      ${defs.ET[elf.type] ?? helpers.hex(elf.type, 4)}`,
-    );
-    Recuerdo.log(
-        `  Machine:   ${defs.EM[elf.machine] ?? helpers.hex(elf.machine, 4)}`,
-    );
+    Recuerdo.log(`  Type:      ${defs.ET[elf.type] ?? helpers.hex(elf.type, 4)}`);
+    Recuerdo.log(`  Machine:   ${defs.EM[elf.machine] ?? helpers.hex(elf.machine, 4)}`);
     Recuerdo.log(`  Version:   ${elf.version}`);
     Recuerdo.log(`  Entry:     ${helpers.hex(elf.entry, addrWidth)}`);
     Recuerdo.log(`  Flags:     ${helpers.hex(elf.flags, 8)}`);
@@ -35,20 +24,18 @@ export function printElfDump(elf: Elf) {
     // -- Segments (Program Headers) -----------------------------------------
 
     Recuerdo.log("=".repeat(150));
-    Recuerdo.log(
-        `  Segments (Program Headers) - ${elf.segments.length} entries`,
-    );
+    Recuerdo.log(`  Segments (Program Headers) - ${elf.segments.length} entries`);
     Recuerdo.log("=".repeat(150));
     Recuerdo.log(
-        "  #".padEnd(5) +
-            "Type".padEnd(14) +
-            "Offset".padEnd(addrWidth + 4) +
-            "VirtAddr".padEnd(addrWidth + 4) +
-            "PhysAddr".padEnd(addrWidth + 4) +
-            "FileSiz".padEnd(12) +
-            "MemSiz".padEnd(12) +
-            "Flg".padEnd(6) +
-            "Align",
+        "  #".padEnd(5)
+            + "Type".padEnd(14)
+            + "Offset".padEnd(addrWidth + 4)
+            + "VirtAddr".padEnd(addrWidth + 4)
+            + "PhysAddr".padEnd(addrWidth + 4)
+            + "FileSiz".padEnd(12)
+            + "MemSiz".padEnd(12)
+            + "Flg".padEnd(6)
+            + "Align",
     );
     Recuerdo.log("  " + "-".repeat(148));
 
@@ -63,15 +50,15 @@ export function printElfDump(elf: Elf) {
         const align = helpers.hex(seg.align, 4);
 
         Recuerdo.log(
-            `  ${seg.index.toString().padEnd(3)}` +
-                `${type.padEnd(14)}` +
-                `${offset.padEnd(addrWidth + 4)}` +
-                `${vaddr.padEnd(addrWidth + 4)}` +
-                `${paddr.padEnd(addrWidth + 4)}` +
-                `${filesz.padEnd(12)}` +
-                `${memsz.padEnd(12)}` +
-                `${flags.padEnd(6)}` +
-                `${align}`,
+            `  ${seg.index.toString().padEnd(3)}`
+                + `${type.padEnd(14)}`
+                + `${offset.padEnd(addrWidth + 4)}`
+                + `${vaddr.padEnd(addrWidth + 4)}`
+                + `${paddr.padEnd(addrWidth + 4)}`
+                + `${filesz.padEnd(12)}`
+                + `${memsz.padEnd(12)}`
+                + `${flags.padEnd(6)}`
+                + `${align}`,
         );
     }
     Recuerdo.log("");
@@ -82,12 +69,7 @@ export function printElfDump(elf: Elf) {
     Recuerdo.log("  Section Headers");
     Recuerdo.log("=".repeat(150));
     Recuerdo.log(
-        "  #".padEnd(7) +
-            "Type".padEnd(20) +
-            "Offset".padEnd(12 + addrWidth - 8) +
-            "Size".padEnd(12) +
-            "Flags".padEnd(7) +
-            "Name",
+        "  #".padEnd(7) + "Type".padEnd(20) + "Offset".padEnd(12 + addrWidth - 8) + "Size".padEnd(12) + "Flags".padEnd(7) + "Name",
     );
     Recuerdo.log("  " + "-".repeat(148));
 
@@ -98,10 +80,8 @@ export function printElfDump(elf: Elf) {
         const flags = helpers.sectionFlagLetters(s.flags);
 
         Recuerdo.log(
-            `  ${s.index.toString().padEnd(5)}${type.padEnd(20)}` +
-                `${offset.padEnd(12 + addrWidth - 8)}${size.padEnd(12)}${
-                    flags.padEnd(7)
-                }${s.name}`,
+            `  ${s.index.toString().padEnd(5)}${type.padEnd(20)}`
+                + `${offset.padEnd(12 + addrWidth - 8)}${size.padEnd(12)}${flags.padEnd(7)}${s.name}`,
         );
     }
     Recuerdo.log("");
@@ -112,10 +92,10 @@ export function printElfDump(elf: Elf) {
     Recuerdo.log(`  Symbol Table - ${elf.symbols.length} entries`);
     Recuerdo.log("=".repeat(150));
     Recuerdo.log(
-        "  #".padEnd(8) + "Bind".padEnd(10) + "Ndx".padEnd(10) +
-            "Type".padEnd(10) +
-            "Vis".padEnd(12) + "Value".padEnd(addrWidth + 4) +
-            "Size".padEnd(10) + "Name".padEnd(30) + "Target",
+        "  #".padEnd(8) + "Bind".padEnd(10) + "Ndx".padEnd(10)
+            + "Type".padEnd(10)
+            + "Vis".padEnd(12) + "Value".padEnd(addrWidth + 4)
+            + "Size".padEnd(10) + "Name".padEnd(30) + "Target",
     );
     Recuerdo.log("  " + "-".repeat(148));
 
@@ -152,15 +132,15 @@ export function printElfDump(elf: Elf) {
         }
 
         Recuerdo.log(
-            `  ${sym.index.toString().padEnd(6)}` +
-                `${bind.padEnd(10)}` +
-                `${ndx.padEnd(10)}` +
-                `${stype.padEnd(10)}` +
-                `${vis.padEnd(12)}` +
-                `${value.padEnd(addrWidth + 4)}` +
-                `${size.padEnd(10)}` +
-                `${sym.name.padEnd(30)}` +
-                `${target}`,
+            `  ${sym.index.toString().padEnd(6)}`
+                + `${bind.padEnd(10)}`
+                + `${ndx.padEnd(10)}`
+                + `${stype.padEnd(10)}`
+                + `${vis.padEnd(12)}`
+                + `${value.padEnd(addrWidth + 4)}`
+                + `${size.padEnd(10)}`
+                + `${sym.name.padEnd(30)}`
+                + `${target}`,
         );
     }
     Recuerdo.log("");
@@ -171,7 +151,7 @@ export function printElfDump(elf: Elf) {
     printRelocationSections(elf, "REL", elf.relSections, addrWidth);
 }
 
-/** Logs every relocation section of one kind (`RELA` or `REL`) as a table. */
+/** Logs every relocation section of one kind (`RELA` or `REL`) as a table */
 function printRelocationSections(
     elf: Elf,
     label: "RELA" | "REL",
@@ -188,39 +168,25 @@ function printRelocationSections(
 
     for (const sec of sections) {
         Recuerdo.log("=".repeat(150));
-        Recuerdo.log(
-            `  ${sec.name} (${label}) - ${sec.entries.length} relocations:`,
-        );
+        Recuerdo.log(`  ${sec.name} (${label}) - ${sec.entries.length} relocations:`);
         Recuerdo.log("");
-        Recuerdo.log(
-            `    Target : ${sec.section.info.toString().padEnd(5)} (${
-                elf.sections[sec.section.info]?.name ?? "UND"
-            })`,
-        );
-        Recuerdo.log(
-            `    Symbols: ${sec.section.link.toString().padEnd(5)} (${
-                elf.sections[sec.section.link]?.name ?? "UND"
-            })`,
-        );
+        Recuerdo.log(`    Target : ${sec.section.info.toString().padEnd(5)} (${elf.sections[sec.section.info]?.name ?? "UND"})`);
+        Recuerdo.log(`    Symbols: ${sec.section.link.toString().padEnd(5)} (${elf.sections[sec.section.link]?.name ?? "UND"})`);
         Recuerdo.log("=".repeat(150));
         Recuerdo.log(
-            "  Offset".padEnd(addrWidth + 6) + "RType".padEnd(8) +
-                "Sym".padEnd(6) +
-                (label === "RELA" ? "Addend".padEnd(14) : "") + "Symbol",
+            "  Offset".padEnd(addrWidth + 6) + "RType".padEnd(8)
+                + "Sym".padEnd(6)
+                + (label === "RELA" ? "Addend".padEnd(14) : "") + "Symbol",
         );
         Recuerdo.log("  " + "-".repeat(148));
 
         for (const e of sec.entries) {
-            const addend = e.addend !== null
-                ? `${e.addend.toString().padEnd(14)}`
-                : "";
+            const addend = e.addend !== null ? `${e.addend.toString().padEnd(14)}` : "";
 
             Recuerdo.log(
-                `  ${helpers.hex(e.offset, addrWidth).padEnd(addrWidth + 4)}` +
-                    `${e.type.toString().padEnd(8)}${
-                        e.symbolIndex.toString().padEnd(6)
-                    }` +
-                    `${addend}${e.symbolName}`,
+                `  ${helpers.hex(e.offset, addrWidth).padEnd(addrWidth + 4)}`
+                    + `${e.type.toString().padEnd(8)}${e.symbolIndex.toString().padEnd(6)}`
+                    + `${addend}${e.symbolName}`,
             );
         }
     }

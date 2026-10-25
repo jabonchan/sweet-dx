@@ -1,12 +1,11 @@
 import { way } from "../deps.ts";
 
-/** Checks whether `path` exists and is a file. Relative paths resolve from the cwd. */
+/** Checks whether `path` exists and is a file. Relative paths resolve from the cwd */
 export function existsAsFile(path: string): boolean {
-    if (way.isRelative(path)) {
+    if (way.isRelative(path))
         path = way.join(Deno.cwd(), path);
-    } else {
+    else
         path = way.normalize(path);
-    }
 
     try {
         const stat = Deno.statSync(path);
@@ -16,13 +15,12 @@ export function existsAsFile(path: string): boolean {
     }
 }
 
-/** Checks whether `path` exists and is a directory. Relative paths resolve from the cwd. */
+/** Checks whether `path` exists and is a directory. Relative paths resolve from the cwd */
 export function existsAsDirectory(path: string): boolean {
-    if (way.isRelative(path)) {
+    if (way.isRelative(path))
         path = way.join(Deno.cwd(), path);
-    } else {
+    else
         path = way.normalize(path);
-    }
 
     try {
         const stat = Deno.statSync(path);
@@ -32,13 +30,12 @@ export function existsAsDirectory(path: string): boolean {
     }
 }
 
-/** Checks whether anything exists at `path`. Relative paths resolve from the cwd. */
+/** Checks whether anything exists at `path`. Relative paths resolve from the cwd */
 export function exists(path: string): boolean {
-    if (way.isRelative(path)) {
+    if (way.isRelative(path))
         path = way.join(Deno.cwd(), path);
-    } else {
+    else
         path = way.normalize(path);
-    }
 
     try {
         Deno.statSync(path);

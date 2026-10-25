@@ -1,4 +1,4 @@
-/** Tree-sitter node types skipped when looking for the meaningful child of a declarator. */
+/** Tree-sitter node types skipped when looking for the meaningful child of a declarator */
 export const IRRELEVANT_NODES = [
     "*",
     "&",
@@ -13,7 +13,7 @@ export const IRRELEVANT_NODES = [
     "comment",
 ];
 
-/** Tree-sitter node types that hold a (possibly qualified) name. */
+/** Tree-sitter node types that hold a (possibly qualified) name */
 export const NAME_NODES = [
     "identifier",
     "field_identifier",
@@ -27,10 +27,5 @@ export const NAME_NODES = [
     "operator_cast",
 ];
 
-/** Specifiers that don't affect the mangled name (`static`, `virtual`, `explicit`...). */
-export const FUNCTION_SPECIFIERS = [
-    "storage_class_specifier",
-    "virtual",
-    "virtual_function_specifier",
-    "explicit_function_specifier",
-];
+/** Specifiers that don't affect the mangled name (`static`, `virtual`, `explicit`...) */
+export const FUNCTION_SPECIFIERS = [ "storage_class_specifier", "virtual", "virtual_function_specifier", "explicit_function_specifier" ];

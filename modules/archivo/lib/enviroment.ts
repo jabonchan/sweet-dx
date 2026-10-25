@@ -1,11 +1,7 @@
 import { exists, existsAsDirectory, existsAsFile } from "./exists.ts";
 import { way } from "../deps.ts";
 
-/**
- * Describes the filesystem layout an operation expects, relative to `root`:
- * `files`/`folders` must already exist, while `available` paths must not exist
- * yet but must have an existing parent (they are about to be created).
- */
+/** files/folders must exist, available paths must not exist but their parent must */
 export interface FSEnviroment {
     root: string;
     folders: string[];
@@ -13,13 +9,12 @@ export interface FSEnviroment {
     files: string[];
 }
 
-/** Validates an `FSEnviroment`, failing on the first path that doesn't match. */
+/** Validates an `FSEnviroment`, failing on the first path that doesn't match */
 export function checkEnviroment(env: FSEnviroment): void {
     const root = way.normalize(env.root);
 
-    if (way.isRelative(root)) {
+    if (way.isRelative(root))
         throw new Error(`The provided root isn't a full path: "${env.root}"`);
-    }
 
     const folders = env.folders.map((folder) => way.join(root, folder));
     const files = env.files.map((file) => way.join(root, file));
@@ -29,36 +24,26 @@ export function checkEnviroment(env: FSEnviroment): void {
     };
 
     for (const file of files) {
-        if (!existsAsFile(file)) {
+        if (!existsAsFile(file))
             throw new Error(`FSEnviroment missing file: "${file}"`);
-        }
     }
 
     for (const folder of folders) {
-        if (!existsAsDirectory(folder)) {
+        if (!existsAsDirectory(folder))
             throw new Error(`FSEnviroment missing folder: "${folder}"`);
-        }
     }
 
     for (const file of available.files) {
-        if (exists(file)) {
+        if (exists(file))
             throw new Error(`FSEnviroment file already exists: "${file}"`);
-        }
-        if (!existsAsDirectory(way.dirpath(file))) {
-            throw new Error(
-                `FSEnviroment file has no existing parent directory: "${file}"`,
-            );
-        }
+        if (!existsAsDirectory(way.dirpath(file)))
+            throw new Error(`FSEnviroment file has no existing parent directory: "${file}"`);
     }
 
     for (const folder of available.folders) {
-        if (exists(folder)) {
+        if (exists(folder))
             throw new Error(`FSEnviroment folder already exists: "${folder}"`);
-        }
-        if (!existsAsDirectory(way.dirpath(folder))) {
-            throw new Error(
-                `FSEnviroment folder has no existing parent directory: "${folder}"`,
-            );
-        }
+        if (!existsAsDirectory(way.dirpath(folder)))
+            throw new Error(`FSEnviroment folder has no existing parent directory: "${folder}"`);
     }
 }

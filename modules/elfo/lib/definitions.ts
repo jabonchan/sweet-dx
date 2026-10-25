@@ -1,9 +1,9 @@
-import { deeplevel } from "../deps.ts";
 import type * as helpers from "./helpers.ts";
+import { deeplevel } from "../deps.ts";
 
 export type Structs = ReturnType<typeof helpers.getCorrectStructs>;
 
-/** A section header as read from the file, before its name is resolved. */
+/** A section header as read from the file, before its name is resolved */
 export interface RawSectionHeader {
     name: number;
     type: number;
@@ -17,12 +17,12 @@ export interface RawSectionHeader {
     entsize: bigint;
 }
 
-/** `ELF`, the magic number every ELF file starts with. */
-export const ELFMAG = new Uint8Array([0x7F, 0x45, 0x4C, 0x46]);
+/** `ELF`, the magic number every ELF file starts with */
+export const ELFMAG = new Uint8Array([ 0x7F, 0x45, 0x4C, 0x46 ]);
 
 export type Bits = 32 | 64;
 
-// ELF constants, named after their `<prefix>_<NAME>` from the spec (e.g. `SHT.SYMTAB` is `SHT_SYMTAB`).
+// ELF constants, named after their `<prefix>_<NAME>` from the spec (e.g. `SHT.SYMTAB` is `SHT_SYMTAB`)
 
 export enum Class {
     ELF32 = 1,
@@ -90,7 +90,7 @@ export enum PT {
     ARM_EXIDX = 0x70000001,
 }
 
-/** Section flags by their readelf letter, used to print `SHF` flags. */
+/** Section flags by their readelf letter, used to print `SHF` flags */
 export enum Short {
     W = 0x1,
     A = 0x2,
@@ -295,7 +295,7 @@ export enum EM {
     LOONGARCH = 258,
 }
 
-// Raw struct layouts of every header, for each class/endianness combination.
+// Raw struct layouts of every header, for each class/endianness combination
 
 export const Elf_Ident = new deeplevel.NativeArray({ length: 16, type: "u8" });
 
@@ -505,116 +505,72 @@ export const Shdr64_BE = new deeplevel.Struct({
 
 export const Sym32_LE = new deeplevel.Struct({
     endianness: deeplevel.types.Endianness.Little,
-    fields: [
-        { name: "name", type: "u32" },
-        { name: "value", type: "u32" },
-        { name: "size", type: "u32" },
-        { name: "info", type: "u8" },
-        { name: "other", type: "u8" },
-        { name: "shndx", type: "u16" },
-    ],
+    fields: [ { name: "name", type: "u32" }, { name: "value", type: "u32" }, { name: "size", type: "u32" }, { name: "info", type: "u8" }, {
+        name: "other",
+        type: "u8",
+    }, { name: "shndx", type: "u16" } ],
 });
 
 export const Sym32_BE = new deeplevel.Struct({
     endianness: deeplevel.types.Endianness.Big,
-    fields: [
-        { name: "name", type: "u32" },
-        { name: "value", type: "u32" },
-        { name: "size", type: "u32" },
-        { name: "info", type: "u8" },
-        { name: "other", type: "u8" },
-        { name: "shndx", type: "u16" },
-    ],
+    fields: [ { name: "name", type: "u32" }, { name: "value", type: "u32" }, { name: "size", type: "u32" }, { name: "info", type: "u8" }, {
+        name: "other",
+        type: "u8",
+    }, { name: "shndx", type: "u16" } ],
 });
 
 export const Sym64_LE = new deeplevel.Struct({
     endianness: deeplevel.types.Endianness.Little,
-    fields: [
-        { name: "name", type: "u32" },
-        { name: "info", type: "u8" },
-        { name: "other", type: "u8" },
-        { name: "shndx", type: "u16" },
-        { name: "value", type: "u64" },
-        { name: "size", type: "u64" },
-    ],
+    fields: [ { name: "name", type: "u32" }, { name: "info", type: "u8" }, { name: "other", type: "u8" }, { name: "shndx", type: "u16" }, {
+        name: "value",
+        type: "u64",
+    }, { name: "size", type: "u64" } ],
 });
 
 export const Sym64_BE = new deeplevel.Struct({
     endianness: deeplevel.types.Endianness.Big,
-    fields: [
-        { name: "name", type: "u32" },
-        { name: "info", type: "u8" },
-        { name: "other", type: "u8" },
-        { name: "shndx", type: "u16" },
-        { name: "value", type: "u64" },
-        { name: "size", type: "u64" },
-    ],
+    fields: [ { name: "name", type: "u32" }, { name: "info", type: "u8" }, { name: "other", type: "u8" }, { name: "shndx", type: "u16" }, {
+        name: "value",
+        type: "u64",
+    }, { name: "size", type: "u64" } ],
 });
 
 export const Rela32_LE = new deeplevel.Struct({
     endianness: deeplevel.types.Endianness.Little,
-    fields: [
-        { name: "offset", type: "u32" },
-        { name: "info", type: "u32" },
-        { name: "addend", type: "i32" },
-    ],
+    fields: [ { name: "offset", type: "u32" }, { name: "info", type: "u32" }, { name: "addend", type: "i32" } ],
 });
 
 export const Rela32_BE = new deeplevel.Struct({
     endianness: deeplevel.types.Endianness.Big,
-    fields: [
-        { name: "offset", type: "u32" },
-        { name: "info", type: "u32" },
-        { name: "addend", type: "i32" },
-    ],
+    fields: [ { name: "offset", type: "u32" }, { name: "info", type: "u32" }, { name: "addend", type: "i32" } ],
 });
 
 export const Rela64_LE = new deeplevel.Struct({
     endianness: deeplevel.types.Endianness.Little,
-    fields: [
-        { name: "offset", type: "u64" },
-        { name: "info", type: "u64" },
-        { name: "addend", type: "i64" },
-    ],
+    fields: [ { name: "offset", type: "u64" }, { name: "info", type: "u64" }, { name: "addend", type: "i64" } ],
 });
 
 export const Rela64_BE = new deeplevel.Struct({
     endianness: deeplevel.types.Endianness.Big,
-    fields: [
-        { name: "offset", type: "u64" },
-        { name: "info", type: "u64" },
-        { name: "addend", type: "i64" },
-    ],
+    fields: [ { name: "offset", type: "u64" }, { name: "info", type: "u64" }, { name: "addend", type: "i64" } ],
 });
 
 export const Rel32_LE = new deeplevel.Struct({
     endianness: deeplevel.types.Endianness.Little,
-    fields: [
-        { name: "offset", type: "u32" },
-        { name: "info", type: "u32" },
-    ],
+    fields: [ { name: "offset", type: "u32" }, { name: "info", type: "u32" } ],
 });
 
 export const Rel32_BE = new deeplevel.Struct({
     endianness: deeplevel.types.Endianness.Big,
-    fields: [
-        { name: "offset", type: "u32" },
-        { name: "info", type: "u32" },
-    ],
+    fields: [ { name: "offset", type: "u32" }, { name: "info", type: "u32" } ],
 });
 
 export const Rel64_LE = new deeplevel.Struct({
     endianness: deeplevel.types.Endianness.Little,
-    fields: [
-        { name: "offset", type: "u64" },
-        { name: "info", type: "u64" },
-    ],
+    fields: [ { name: "offset", type: "u64" }, { name: "info", type: "u64" } ],
 });
 
 export const Rel64_BE = new deeplevel.Struct({
     endianness: deeplevel.types.Endianness.Big,
-    fields: [
-        { name: "offset", type: "u64" },
-        { name: "info", type: "u64" },
-    ],
+    fields: [ { name: "offset", type: "u64" }, { name: "info", type: "u64" } ],
 });

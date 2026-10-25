@@ -1,6 +1,6 @@
 import type { BuiltinName } from "../parsing/types.ts";
 
-/** Itanium codes of the fundamental types. */
+/** Itanium codes of the fundamental types */
 export const BUILTIN_CODES: Record<BuiltinName, string> = {
     "void": "v",
     "bool": "b",
@@ -27,7 +27,7 @@ export const BUILTIN_CODES: Record<BuiltinName, string> = {
     "__float128": "g",
 };
 
-/** Itanium codes of the operators that have a single meaning. */
+/** Itanium codes of the operators that have a single meaning */
 export const OPERATOR_CODES: Record<string, string> = {
     "new": "nw",
     "new[]": "na",
@@ -74,29 +74,27 @@ export const OPERATOR_CODES: Record<string, string> = {
 
 // [unary, binary]
 export const AMBIGUOUS_OPERATOR_CODES: Record<string, [string, string]> = {
-    "+": ["ps", "pl"],
-    "-": ["ng", "mi"],
-    "*": ["de", "ml"],
-    "&": ["ad", "an"],
+    "+": [ "ps", "pl" ],
+    "-": [ "ng", "mi" ],
+    "*": [ "de", "ml" ],
+    "&": [ "ad", "an" ],
 };
 
-// Type of the non-type template arguments of some well known std templates (the parser can't know it).
-// "first" means "same type as the first (type) argument", like std::integral_constant<T, v>.
-// "size_t" is resolved with the data model: `m` on LP64, `j` on ILP32 (ARMv7).
+// Type of the non-type arguments of some std templates, "first" means the type of the first argument
 export const STD_NON_TYPE_ARGUMENTS: Record<string, string[] | "first"> = {
-    "std::array": ["", "size_t"],
-    "std::bitset": ["size_t"],
-    "std::tuple_element": ["size_t"],
-    "std::get": ["size_t"],
-    "std::make_index_sequence": ["size_t"],
-    "std::enable_if": ["b"],
-    "std::conditional": ["b"],
-    "std::bool_constant": ["b"],
+    "std::array": [ "", "size_t" ],
+    "std::bitset": [ "size_t" ],
+    "std::tuple_element": [ "size_t" ],
+    "std::get": [ "size_t" ],
+    "std::make_index_sequence": [ "size_t" ],
+    "std::enable_if": [ "b" ],
+    "std::conditional": [ "b" ],
+    "std::bool_constant": [ "b" ],
     "std::integral_constant": "first",
     "std::integer_sequence": "first",
 };
 
-/** Fixed-width typedefs that are the same on every data model. */
+/** Fixed-width typedefs that are the same on every data model */
 const COMMON_TYPEDEFS: Record<string, BuiltinName> = {
     int8_t: "signed char",
     uint8_t: "unsigned char",
@@ -106,11 +104,8 @@ const COMMON_TYPEDEFS: Record<string, BuiltinName> = {
     uint32_t: "unsigned int",
 };
 
-/** What the standard typedefs really are on each data model, used by `resolveTypedefs`. */
-export const TYPEDEFS_BY_MODEL: Record<
-    "lp64" | "ilp32",
-    Record<string, BuiltinName>
-> = {
+/** What the standard typedefs really are on each data model, used by `resolveTypedefs` */
+export const TYPEDEFS_BY_MODEL: Record<"lp64" | "ilp32", Record<string, BuiltinName>> = {
     lp64: {
         ...COMMON_TYPEDEFS,
         size_t: "unsigned long",
@@ -141,7 +136,7 @@ export const TYPEDEFS_BY_MODEL: Record<
     },
 };
 
-export const VA_LIST_NAMES = ["va_list", "__builtin_va_list", "__gnuc_va_list"];
+export const VA_LIST_NAMES = [ "va_list", "__builtin_va_list", "__gnuc_va_list" ];
 
 // Names that libc++ declares directly in `std`, outside of its inline namespace
 export const STD_UNVERSIONED = new Set([
@@ -162,7 +157,7 @@ export const STD_UNVERSIONED = new Set([
     "__va_list",
 ]);
 
-/** `std::string` and friends, by the character type of the `basic_string` they stand for. */
+/** `std::string` and friends, by the character type of the `basic_string` they stand for */
 export const STD_STRING_TYPEDEFS: Record<string, BuiltinName> = {
     string: "char",
     wstring: "wchar_t",
@@ -171,14 +166,14 @@ export const STD_STRING_TYPEDEFS: Record<string, BuiltinName> = {
     u32string: "char32_t",
 };
 
-/** `std::ostream` and friends, by the `basic_*` template they stand for. */
+/** `std::ostream` and friends, by the `basic_*` template they stand for */
 export const STD_STREAM_TYPEDEFS: Record<string, string> = {
     istream: "basic_istream",
     ostream: "basic_ostream",
     iostream: "basic_iostream",
 };
 
-/** Fake tree-sitter node type used to mark template parameter references (see `templateParameterType`). */
+/** Fake tree-sitter node type for template parameter references (see templateParameterType) */
 export const TEMPLATE_PARAMETER_NODE = "titanio:template-parameter";
 
 export const ANONYMOUS_NAMESPACE = /^(\(anonymous namespace\)|\{anonymous\})$/;

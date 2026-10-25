@@ -1,20 +1,23 @@
+import { archivo, titanio, utils } from "../deps.ts";
 import { hexify } from "../../utils/mod.ts";
-import { archivo, utils } from "../deps.ts";
 
 export type SymEntry = {
     readonly name: string;
+    /** The `as C1`...`as D2` of a C++ constructor/destructor signature, if it has one */
+    readonly variant: titanio.SpecialVariant | "default";
     readonly address: number;
+    readonly line: number;
 };
 
-// The trailing ";" is optional: codedx's own main.sym omits it on its first entry.
-const STATEMENT_PATTERN = /^([^\s=]+)\s*=\s*(-?0x[0-9a-fA-F]+)\s*;?$/i;
+// The ; is optional (codedx's main.sym misses one), names can be signatures with "as D0" and such
+const STATEMENT_PATTERN = /^(.+?)(?:\s+as\s+(C[123]|D[012]))?\s*=\s*(-?0x[0-9a-fA-F]+)\s*;?$/i;
 
-/** A parsed `.sym` file: `name = 0xADDRESS;` lines, with `#` comments. */
+/** A parsed `.sym` file: `name = 0xADDRESS;` lines, with `#` comments */
 export class Sym {
     readonly file: archivo.Archivo;
     readonly symbols: readonly SymEntry[];
 
-    /** Reads and parses the `.sym` file at `path`, then closes it. */
+    /** Reads and parses the `.sym` file at `path`, then closes it */
     constructor(public readonly path: string) {
         this.file = new archivo.Archivo(path, { readOnly: true });
 
@@ -25,22 +28,25 @@ export class Sym {
         }
     }
 
-    /** Returns the symbol named `name`, if any. */
-    findSymbol(name: string): SymEntry | undefined {
-        return this.symbols.find((symbol) => symbol.name === name);
-    }
-
-    /**
-     * Writes the symbols as a linker script of `name = address;` assignments,
-     * sorted by address, with `offset` subtracted from every address.
-     */
+    /** Linker script sorted by address, signatures are mangled first and duplicates are an error */
     toLinker(path: string, offset: number): void {
-        const text = this.symbols
-            .toSorted((a, b) => a.address - b.address)
-            .map((symbol) =>
-                `${symbol.name} = ${hexify(symbol.address - offset)}`
-            )
-            .join(";\n") + ";\n";
+        const firstSeenAt = new Map<string, SymEntry>();
+
+        for (const symbol of this.symbols) {
+            const name = this.linkableName(symbol);
+            const first = firstSeenAt.get(name);
+
+            if (first !== undefined) {
+                throw new Error(
+                    `Duplicate symbol "${name}" at line ${symbol.line} in "${this.path}" ("${symbol.name}"), first defined at line ${first.line} ("${first.name}").`,
+                );
+            }
+
+            firstSeenAt.set(name, symbol);
+        }
+
+        const sorted = [ ...firstSeenAt ].toSorted(([, a], [, b]) => a.address - b.address);
+        const text = sorted.map(([name, symbol]) => `${name} = ${hexify(symbol.address - offset)}`).join(";\n") + ";\n";
 
         const file = new archivo.Archivo(path, { empty: true });
 
@@ -51,51 +57,60 @@ export class Sym {
         }
     }
 
-    /** Parses every line, failing on invalid syntax or duplicate names. */
+    /** Mangled goes first since _ZN3FooC1Ev is also a valid C name, no variant means C1/D1 */
+    private linkableName(symbol: SymEntry): string {
+        const { name, variant, line } = symbol;
+
+        if (titanio.isMangledCppSignature_FAST(name) || titanio.isCFunctionName(name)) {
+            if (variant !== "default") {
+                throw new Error(
+                    `Symbol "${name}" at line ${line} in "${this.path}" can't use "as ${variant}", only C++ constructor and destructor signatures can.`,
+                );
+            }
+
+            return name;
+        }
+
+        try {
+            return titanio.mangleAs(name, variant);
+        } catch (error) {
+            throw new Error(
+                `Symbol "${name}" (variant: ${variant}) at line ${line} in "${this.path}" could not be resolved as a C name, a mangled C++ symbol or a C++ function signature:\n${
+                    error instanceof Error ? error.message : String(error)
+                }`,
+            );
+        }
+    }
+
+    /** Duplicates are checked in toLinker once everything is mangled */
     private parse(text: string): SymEntry[] {
         const symbols: SymEntry[] = [];
-        const firstSeenAt = new Map<string, number>();
         const lines = text.split(/\r\n|\r|\n/);
 
         for (let i = 0; i < lines.length; i++) {
             const commentIndex = lines[i].indexOf("#");
-            const statement = (commentIndex === -1
-                ? lines[i]
-                : lines[i].slice(0, commentIndex)).trim();
+            const statement = (commentIndex === -1 ? lines[i] : lines[i].slice(0, commentIndex)).trim();
 
-            if (statement.length === 0) {
+            if (statement.length === 0)
                 continue;
-            }
 
             const match = statement.match(STATEMENT_PATTERN);
 
-            if (!match) {
-                throw new Error(
-                    `Invalid symbol definition at line ${
-                        i + 1
-                    } in "${this.path}": "${lines[i].trim()}".`,
-                );
-            }
+            if (!match)
+                throw new Error(`Invalid symbol definition at line ${i + 1} in "${this.path}": "${lines[i].trim()}".`);
 
-            const [, name, hex] = match;
-            const first = firstSeenAt.get(name);
-
-            if (first !== undefined) {
-                throw new Error(
-                    `Duplicate symbol "${name}" at line ${
-                        i + 1
-                    } in "${this.path}" (first defined at line ${first}).`,
-                );
-            }
-
-            firstSeenAt.set(name, i + 1);
+            const [, name, variant, hex] = match;
             const address = utils.dehexify(hex);
 
-            if (address < 0) {
+            if (address < 0)
                 throw new Error("Addresses can't be negative!");
-            }
 
-            symbols.push({ name, address });
+            symbols.push({
+                name,
+                variant: (variant?.toUpperCase() ?? "default") as titanio.SpecialVariant | "default",
+                address,
+                line: i + 1,
+            });
         }
 
         return symbols;

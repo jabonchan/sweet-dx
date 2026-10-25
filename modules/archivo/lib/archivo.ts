@@ -3,78 +3,42 @@
 import { utils, way } from "../deps.ts";
 import * as e from "./exists.ts";
 
-// Largest string / typed array that can be read in one go; bigger files need streams.
+// Largest string / typed array that can be read in one go; bigger files need streams
 export const MAXIMUM_STRING_SIZE = 2 ** 28;
 export const MAXIMUM_ARRAY_SIZE = (2 ** 32) - 1;
 
-export type ArchivoStream = ReturnType<
-    typeof Archivo.prototype.createReadStream
->;
-export type ArchivoCharacterStream = ReturnType<
-    typeof Archivo.prototype.createReadCharacterStream
->;
+export type ArchivoStream = ReturnType<typeof Archivo.prototype.createReadStream>;
+export type ArchivoCharacterStream = ReturnType<typeof Archivo.prototype.createReadCharacterStream>;
 
-type ByteStream = {
-    [Symbol.iterator](): Generator<
-        readonly [Uint8Array, number],
-        void,
-        unknown
-    >;
-};
+type ByteStream = { [Symbol.iterator](): Generator<readonly [Uint8Array, number], void, unknown> };
 
-type CharacterStream = {
-    [Symbol.iterator](): Generator<readonly [string, number], void, unknown>;
-};
+type CharacterStream = { [Symbol.iterator](): Generator<readonly [string, number], void, unknown> };
 
-/** A synchronous wrapper around an open file with bounds-checked reads, writes and streams. */
+/** A synchronous wrapper around an open file with bounds-checked reads, writes and streams */
 export class Archivo {
     public readonly info: way.ParsedPath;
     public readonly handle: Deno.FsFile;
     private closed = false;
 
-    /**
-     * Opens (or creates, unless `readOnly`) the file at `path`.
-     * With `empty`, an existing file is truncated to zero bytes.
-     */
-    constructor(
-        public readonly path: string,
-        options: { readOnly?: boolean; empty?: boolean } = {},
-    ) {
-        this.path = way.isRelative(path)
-            ? way.join(Deno.cwd(), path)
-            : way.normalize(path);
+    /** Opens or creates the file, empty truncates it */
+    constructor(public readonly path: string, options: { readOnly?: boolean; empty?: boolean } = {}) {
+        this.path = way.isRelative(path) ? way.join(Deno.cwd(), path) : way.normalize(path);
 
-        if (options.empty && options.readOnly) {
-            throw new Error(
-                `Can't open a file (${this.path}) as both empty and read-only`,
-            );
-        }
+        if (options.empty && options.readOnly)
+            throw new Error(`Can't open a file (${this.path}) as both empty and read-only`);
 
-        if (e.exists(this.path) && !e.existsAsFile(this.path)) {
-            throw new Error(
-                `The path "${this.path}" exists but is not a file.`,
-            );
-        }
+        if (e.exists(this.path) && !e.existsAsFile(this.path))
+            throw new Error(`The path "${this.path}" exists but is not a file.`);
 
-        if (!e.existsAsDirectory(way.dirpath(this.path))) {
-            throw new Error(
-                `The directory "${way.dirpath(this.path)}" does not exist.`,
-            );
-        }
+        if (!e.existsAsDirectory(way.dirpath(this.path)))
+            throw new Error(`The directory "${way.dirpath(this.path)}" does not exist.`);
 
         this.info = way.parse(this.path);
 
         try {
-            this.handle = Deno.openSync(
-                this.path,
-                options.readOnly
-                    ? { read: true }
-                    : { read: true, write: true, create: true },
-            );
+            this.handle = Deno.openSync(this.path, options.readOnly ? { read: true } : { read: true, write: true, create: true });
         } catch (e) {
-            throw new Error(
-                `Failed to open file "${this.path}": ${(e as Error).message}`,
-            );
+            throw new Error(`Failed to open file "${this.path}": ${(e as Error).message}`);
         }
 
         if (!options.empty || !this.handle.statSync().size) return;
@@ -83,80 +47,60 @@ export class Archivo {
             this.handle.truncateSync(0);
         } catch (e) {
             this.handle.close();
-            throw new Error(
-                "Failed to empty file. Due to " + (e as Error).message,
-            );
+            throw new Error("Failed to empty file. Due to " + (e as Error).message);
         }
     }
 
-    /** Whether `close()` was already called. */
+    /** Whether `close()` was already called */
     isClosed(): boolean {
         return this.closed;
     }
 
-    /** Whether the file is still open. */
+    /** Whether the file is still open */
     isOpen(): boolean {
         return !this.closed;
     }
 
-    /** Returns the current file size in bytes. */
+    /** Returns the current file size in bytes */
     getSize(): number {
-        if (this.closed) {
+        if (this.closed)
             throw new Error(`The file "${this.path}" is already closed.`);
-        }
 
         return this.handle.statSync().size;
     }
 
-    /** Closes the file handle. Fails if it was already closed. */
+    /** Closes the file handle. Fails if it was already closed */
     close(): void {
-        if (this.closed) {
+        if (this.closed)
             throw new Error(`The file "${this.path}" is already closed.`);
-        }
 
         this.closed = true;
         this.handle.close();
     }
 
-    /** Reads the whole file as UTF-8 text. */
+    /** Reads the whole file as UTF-8 text */
     readAsText(): string {
         if (this.getSize() > MAXIMUM_STRING_SIZE) {
             throw new Error(
-                "The file size is too large to be read at once as a string, use stream based APIs. File size: " +
-                    this.getSize(),
+                "The file size is too large to be read at once as a string, use stream based APIs. File size: " + this.getSize(),
             );
         }
 
         return Deno.readTextFileSync(this.path);
     }
 
-    /** Reads the whole file as bytes. */
+    /** Reads the whole file as bytes */
     read(): Uint8Array {
-        if (this.getSize() > MAXIMUM_ARRAY_SIZE) {
-            throw new Error(
-                "The file size is too large to be read at once, use stream based APIs. File size: " +
-                    this.getSize(),
-            );
-        }
+        if (this.getSize() > MAXIMUM_ARRAY_SIZE)
+            throw new Error("The file size is too large to be read at once, use stream based APIs. File size: " + this.getSize());
 
         return Deno.readFileSync(this.path);
     }
 
-    /**
-     * Reads `length` bytes starting at `offset`. Fails on a short read unless
-     * `allowPartial` is set, in which case the returned buffer may be smaller.
-     */
-    readAt(
-        offset: number,
-        length: number,
-        allowPartial: boolean = false,
-    ): Uint8Array<ArrayBuffer> {
-        if (length > MAXIMUM_ARRAY_SIZE) {
-            throw new Error(
-                "The chunk size is too large to be used, use a smaller chunk size instead. Chunk size: " +
-                    length,
-            );
-        }
+    /** Fails on a short read unless allowPartial is set */
+    readAt(offset: number, length: number, allowPartial: boolean = false): Uint8Array<ArrayBuffer> {
+        if (length > MAXIMUM_ARRAY_SIZE)
+            throw new Error("The chunk size is too large to be used, use a smaller chunk size instead. Chunk size: " + length);
 
         this.goto(offset);
 
@@ -171,16 +115,14 @@ export class Archivo {
 
         if (read < length && !allowPartial) {
             throw new Error(
-                `Expected to read ${length} bytes, but only read ${read} bytes from file "${this.path}" at offset ${
-                    utils.hexify(offset)
-                }.`,
+                `Expected to read ${length} bytes, but only read ${read} bytes from file "${this.path}" at offset ${utils.hexify(offset)}.`,
             );
         }
 
         return buffer.slice(0, read);
     }
 
-    /** Writes `data` at `offset`, overwriting what's there. */
+    /** Writes `data` at `offset`, overwriting what's there */
     writeAt(offset: number, data: Uint8Array): void {
         let written = 0;
 
@@ -190,31 +132,24 @@ export class Archivo {
         }
     }
 
-    /** Writes `data` as UTF-8 at `offset`. */
+    /** Writes `data` as UTF-8 at `offset` */
     writeTextAt(offset: number, data: string): void {
         return this.writeAt(offset, utils.encode(data));
     }
 
-    /** Writes `data` at the end of the file. */
+    /** Writes `data` at the end of the file */
     append(data: Uint8Array): void {
         this.writeAt(this.getSize(), data);
     }
 
-    /** Writes `data` as UTF-8 at the end of the file. */
+    /** Writes `data` as UTF-8 at the end of the file */
     appendText(data: string): void {
         return this.append(utils.encode(data));
     }
 
-    /**
-     * Returns a lazy iterable of `[chunk, offset]` pairs from `offset` up to
-     * `end` (or `offset + size`, or the end of the file).
-     */
+    /** Lazy [chunk, offset] pairs from offset up to end, offset + size or the end of the file */
     createReadStream(
-        opts: { offset: number; chunkSize?: number; end?: number } | {
-            offset: number;
-            chunkSize?: number;
-            size?: number;
-        },
+        opts: { offset: number; chunkSize?: number; end?: number } | { offset: number; chunkSize?: number; size?: number },
     ): ByteStream {
         let currentOffset = opts.offset;
         let consumed = false;
@@ -228,27 +163,16 @@ export class Archivo {
             ? (opts.size ?? (fileSize - currentOffset)) + currentOffset
             : fileSize;
 
-        if (chunkSize <= 0 || opts.offset < 0 || endOffset < currentOffset) {
-            throw new Error(
-                `Invalid stream options. Received: ${JSON.stringify(opts)}`,
-            );
-        }
+        if (chunkSize <= 0 || opts.offset < 0 || endOffset < currentOffset)
+            throw new Error(`Invalid stream options. Received: ${JSON.stringify(opts)}`);
 
-        if (fileSize < endOffset) {
-            throw new Error(
-                `End offset ${utils.hexify(endOffset)} exceeds file size of ${
-                    utils.hexify(fileSize)
-                }.`,
-            );
-        }
+        if (fileSize < endOffset)
+            throw new Error(`End offset ${utils.hexify(endOffset)} exceeds file size of ${utils.hexify(fileSize)}.`);
 
         return {
             *[Symbol.iterator]() {
-                if (consumed) {
-                    throw new Error(
-                        `Attempted to consume already-consumed stream (${self.path})`,
-                    );
-                }
+                if (consumed)
+                    throw new Error(`Attempted to consume already-consumed stream (${self.path})`);
 
                 consumed = true;
                 while (currentOffset < endOffset) {
@@ -256,7 +180,7 @@ export class Archivo {
                     const currentChunkSize = Math.min(chunkSize, remainingSize);
                     const chunk = self.readAt(currentOffset, currentChunkSize);
 
-                    yield [chunk, currentOffset] as const;
+                    yield [ chunk, currentOffset ] as const;
 
                     currentOffset += currentChunkSize;
                 }
@@ -264,16 +188,9 @@ export class Archivo {
         };
     }
 
-    /**
-     * Like `createReadStream`, but decodes UTF-8 and yields one
-     * `[character, byteOffset]` pair per character.
-     */
+    /** Like createReadStream but yields [character, byteOffset] pairs */
     createReadCharacterStream(
-        opts: { offset: number; chunkSize?: number; end?: number } | {
-            offset: number;
-            chunkSize?: number;
-            size?: number;
-        },
+        opts: { offset: number; chunkSize?: number; end?: number } | { offset: number; chunkSize?: number; size?: number },
     ): CharacterStream {
         const byteStream = this.createReadStream(opts);
 
@@ -283,57 +200,44 @@ export class Archivo {
                 let charOffset = opts.offset;
 
                 for (const [chunk] of byteStream) {
-                    // `stream: true` keeps multi-byte characters split across chunks intact.
+                    // `stream: true` keeps multi-byte characters split across chunks intact
                     const text = decoder.decode(chunk, { stream: true });
 
                     for (const char of text) {
-                        yield [char, charOffset] as const;
+                        yield [ char, charOffset ] as const;
                         charOffset += utils.encode(char).length;
                     }
                 }
 
-                // Flush whatever bytes the decoder was still holding back.
+                // Flush whatever bytes the decoder was still holding back
                 const tail = decoder.decode();
 
                 for (const char of tail) {
-                    yield [char, charOffset] as const;
+                    yield [ char, charOffset ] as const;
                     charOffset += utils.encode(char).length;
                 }
             },
         };
     }
 
-    /** Seeks to `offset`, checking the file is open and the offset is in range. */
+    /** Seeks to `offset`, checking the file is open and the offset is in range */
     private goto(offset: number): void {
-        if (this.closed) {
+        if (this.closed)
             throw new Error(`The file "${this.path}" is already closed.`);
-        }
 
-        if (offset < 0) {
-            throw new Error(
-                `Offset cannot be negative. Received: ${utils.hexify(offset)}`,
-            );
-        }
+        if (offset < 0)
+            throw new Error(`Offset cannot be negative. Received: ${utils.hexify(offset)}`);
 
-        if (this.getSize() < offset) {
-            throw new Error(
-                `Offset ${utils.hexify(offset)} exceeds file size of ${
-                    utils.hexify(this.getSize())
-                }.`,
-            );
-        }
+        if (this.getSize() < offset)
+            throw new Error(`Offset ${utils.hexify(offset)} exceeds file size of ${utils.hexify(this.getSize())}.`);
 
         this.handle.seekSync(offset, Deno.SeekMode.Start);
     }
 
-    /** Same as `createReadStream`, but over an in-memory buffer instead of the file. */
+    /** Same as `createReadStream`, but over an in-memory buffer instead of the file */
     static bufferToReadStream(
         buffer: Uint8Array,
-        opts: { offset: number; chunkSize?: number; end?: number } | {
-            offset: number;
-            chunkSize?: number;
-            size?: number;
-        },
+        opts: { offset: number; chunkSize?: number; end?: number } | { offset: number; chunkSize?: number; size?: number },
     ): ByteStream {
         let currentOffset = opts.offset;
         let consumed = false;
@@ -346,38 +250,24 @@ export class Archivo {
             ? (opts.size ?? (fileSize - currentOffset)) + currentOffset
             : fileSize;
 
-        if (chunkSize <= 0 || opts.offset < 0 || endOffset < currentOffset) {
-            throw new Error(
-                `Invalid stream options. Received: ${JSON.stringify(opts)}`,
-            );
-        }
+        if (chunkSize <= 0 || opts.offset < 0 || endOffset < currentOffset)
+            throw new Error(`Invalid stream options. Received: ${JSON.stringify(opts)}`);
 
-        if (fileSize < endOffset) {
-            throw new Error(
-                `End offset ${utils.hexify(endOffset)} exceeds file size of ${
-                    utils.hexify(fileSize)
-                }.`,
-            );
-        }
+        if (fileSize < endOffset)
+            throw new Error(`End offset ${utils.hexify(endOffset)} exceeds file size of ${utils.hexify(fileSize)}.`);
 
         return {
             *[Symbol.iterator]() {
-                if (consumed) {
-                    throw new Error(
-                        `Attempted to consume already-consumed buffer-stream`,
-                    );
-                }
+                if (consumed)
+                    throw new Error(`Attempted to consume already-consumed buffer-stream`);
 
                 consumed = true;
                 while (currentOffset < endOffset) {
                     const remainingSize = endOffset - currentOffset;
                     const currentChunkSize = Math.min(chunkSize, remainingSize);
-                    const chunk = buffer.slice(
-                        currentOffset,
-                        currentOffset + currentChunkSize,
-                    );
+                    const chunk = buffer.slice(currentOffset, currentOffset + currentChunkSize);
 
-                    yield [chunk, currentOffset] as const;
+                    yield [ chunk, currentOffset ] as const;
 
                     currentOffset += currentChunkSize;
                 }

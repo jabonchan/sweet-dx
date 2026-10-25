@@ -1,36 +1,21 @@
+import { builtinType, decayParameter, hasQualifiers, namedType, qualifiersOf, templateParameterIndex, unsupportedType } from "./cpp-types.ts";
 import type { CppType, NameSegment } from "../parsing/types.ts";
+import { encodeArraySize, encodeLiteral } from "./literals.ts";
+import { cvString, substitutionId } from "./encoding.ts";
 import type { ResolvedOptions } from "./options.ts";
 import type { TypeResolver } from "./resolver.ts";
-import {
-    builtinType,
-    decayParameter,
-    hasQualifiers,
-    namedType,
-    qualifiersOf,
-    templateParameterIndex,
-    unsupportedType,
-} from "./cpp-types.ts";
-import { cvString, substitutionId } from "./encoding.ts";
-import { encodeArraySize, encodeLiteral } from "./literals.ts";
 
-/**
- * The <substitution> table of a single mangled name (S_, S0_...), plus the std:: abbreviations (Sa, Ss, So...).
- * Components are identified by structural keys: two components get the same key if and only if they are the same
- * entity for substitution purposes.
- */
+/** Substitution table of one mangled name (S_, S0_...) plus the std:: abbreviations */
 export class Substitutions {
     private readonly table: string[] = [];
     private readonly abbreviations = new Map<string, string>();
 
-    /** Sets up the `std::` abbreviations, which only libstdc++ uses. */
-    constructor(
-        private readonly options: ResolvedOptions,
-        private readonly resolver: TypeResolver,
-    ) {
+    /** Sets up the `std::` abbreviations, which only libstdc++ uses */
+    constructor(private readonly options: ResolvedOptions, private readonly resolver: TypeResolver) {
         if (options.stdLibrary !== "libstdc++") return;
 
         const char = builtinType("char");
-        const traits = namedType(["std", "char_traits"], [char]);
+        const traits = namedType([ "std", "char_traits" ], [ char ]);
 
         // Template names
         this.abbreviations.set("std::allocator", "Sa");
@@ -38,30 +23,15 @@ export class Substitutions {
 
         // Complete types
         this.abbreviations.set(
-            this.keyType(
-                namedType(["std", "basic_string"], [
-                    char,
-                    traits,
-                    namedType(["std", "allocator"], [char]),
-                ]),
-            ),
+            this.keyType(namedType([ "std", "basic_string" ], [ char, traits, namedType([ "std", "allocator" ], [ char ]) ])),
             "Ss",
         );
-        this.abbreviations.set(
-            this.keyType(namedType(["std", "basic_istream"], [char, traits])),
-            "Si",
-        );
-        this.abbreviations.set(
-            this.keyType(namedType(["std", "basic_ostream"], [char, traits])),
-            "So",
-        );
-        this.abbreviations.set(
-            this.keyType(namedType(["std", "basic_iostream"], [char, traits])),
-            "Sd",
-        );
+        this.abbreviations.set(this.keyType(namedType([ "std", "basic_istream" ], [ char, traits ])), "Si");
+        this.abbreviations.set(this.keyType(namedType([ "std", "basic_ostream" ], [ char, traits ])), "So");
+        this.abbreviations.set(this.keyType(namedType([ "std", "basic_iostream" ], [ char, traits ])), "Sd");
     }
 
-    /** Returns the abbreviation or `S<seq-id>_` for a component already seen, if any. */
+    /** Returns the abbreviation or `S<seq-id>_` for a component already seen, if any */
     lookup(key: string): string | undefined {
         const abbreviation = this.abbreviations.get(key);
 
@@ -72,21 +42,13 @@ export class Substitutions {
         return index === -1 ? undefined : substitutionId(index);
     }
 
-    /** Adds a component to the table (once), giving it the next `S<seq-id>_`. */
+    /** Adds a component to the table (once), giving it the next `S<seq-id>_` */
     register(key: string): void {
         if (!this.table.includes(key)) this.table.push(key);
     }
 
-    /**
-     * Key of the name prefix `segments[0..k]`. The template arguments of the
-     * last segment are only included with `includeLastArguments`, since a
-     * template name and its specialization are separate substitutions.
-     */
-    keyPrefix(
-        segments: NameSegment[],
-        k: number,
-        includeLastArguments: boolean,
-    ): string {
+    /** Key of segments[0..k], the last template arguments only count with includeLastArguments */
+    keyPrefix(segments: NameSegment[], k: number, includeLastArguments: boolean): string {
         const parts: string[] = [];
 
         for (let i = 0; i <= k; i++) {
@@ -109,26 +71,21 @@ export class Substitutions {
                     break;
 
                 case "conversion":
-                    part = "operator " +
-                        (segment.conversionTargetType
-                            ? this.keyType(segment.conversionTargetType)
-                            : "?");
+                    part = "operator " + (segment.conversionTargetType ? this.keyType(segment.conversionTargetType) : "?");
                     break;
             }
 
             if (args && (i < k || includeLastArguments)) {
                 part += "<" + args.map((arg, index) =>
-                    arg.kind === "type" ? this.keyType(arg.type) : "#" +
-                        encodeLiteral(
-                            arg.sourceText,
-                            arg.integerValue,
-                            this.options.dataModel,
-                            this.resolver.literalTypeHint(
-                                owner,
-                                index,
-                                args,
-                            ),
-                        )
+                    arg.kind === "type"
+                        ? this.keyType(arg.type)
+                        : "#"
+                            + encodeLiteral(
+                                arg.sourceText,
+                                arg.integerValue,
+                                this.options.dataModel,
+                                this.resolver.literalTypeHint(owner, index, args),
+                            )
                 ).join(",") + ">";
             }
 
@@ -138,69 +95,47 @@ export class Substitutions {
         return parts.join("::");
     }
 
-    /** Structural key of a type, after resolving typedefs and inline namespaces. */
+    /** Structural key of a type, after resolving typedefs and inline namespaces */
     keyType(input: CppType): string {
         const type = this.resolver.resolve(input);
         const qualifiers = qualifiersOf(type);
-        const prefix = hasQualifiers(qualifiers)
-            ? `[${cvString(qualifiers)}]`
-            : "";
+        const prefix = hasQualifiers(qualifiers) ? `[${cvString(qualifiers)}]` : "";
 
         switch (type.kind) {
             case "builtin":
                 return `${prefix}b:${type.name}`;
 
             case "named":
-                return prefix +
-                    this.keyPrefix(
-                        type.name.segments,
-                        type.name.segments.length - 1,
-                        true,
-                    );
+                return prefix + this.keyPrefix(type.name.segments, type.name.segments.length - 1, true);
 
             case "pointer":
                 return `${prefix}P(${this.keyType(type.subtype)})`;
 
             case "reference":
-                return `${type.isRvalue ? "O" : "R"}(${
-                    this.keyType(type.referent)
-                })`;
+                return `${type.isRvalue ? "O" : "R"}(${this.keyType(type.referent)})`;
 
             case "array":
-                return `A${encodeArraySize(type.sizeText)}(${
-                    this.keyType(type.elementType)
-                })`;
+                return `A${encodeArraySize(type.sizeText)}(${this.keyType(type.elementType)})`;
 
             case "function": {
-                const parameters = type.parameters.map((parameter) =>
-                    this.keyType(
-                        decayParameter(this.resolver.resolve(parameter.type)),
-                    )
-                ).join(",");
+                const parameters = type.parameters.map((parameter) => this.keyType(decayParameter(this.resolver.resolve(parameter.type))))
+                    .join(",");
 
-                return `F[${cvString(type.qualifiers)}${
-                    type.isNoexcept && this.options.noexceptInFunctionType
-                        ? "x"
-                        : ""
-                }${type.refQualifier ?? ""}](${
-                    type.returnType ? this.keyType(type.returnType) : ""
-                };${parameters}${type.hasCEllipsis ? ",..." : ""})`;
+                return `F[${cvString(type.qualifiers)}${type.isNoexcept && this.options.noexceptInFunctionType ? "x" : ""}${
+                    type.refQualifier ?? ""
+                }](${type.returnType ? this.keyType(type.returnType) : ""};${parameters}${type.hasCEllipsis ? ",..." : ""})`;
             }
 
             case "auto":
                 return `${prefix}auto`;
 
             case "decltype":
-                return `${prefix}decltype:${
-                    type.expressionText.replace(/\s+/g, "")
-                }`;
+                return `${prefix}decltype:${type.expressionText.replace(/\s+/g, "")}`;
 
             case "unknown": {
                 const index = templateParameterIndex(type);
 
-                return index === undefined
-                    ? unsupportedType(type)
-                    : `${prefix}T#${index}`;
+                return index === undefined ? unsupportedType(type) : `${prefix}T#${index}`;
             }
         }
     }
