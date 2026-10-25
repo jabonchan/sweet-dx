@@ -2,12 +2,17 @@ name: Release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
   contents: write
+
+# Don't let two nightly runs update the same release at once.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -32,6 +37,28 @@ jobs:
           name: sweetdx-binaries
           path: build/*
           if-no-files-found: error
+
+      # Every push to main moves the "nightly" tag to the new commit and
+      # replaces the binaries on the nightly pre-release.
+      - name: Move nightly tag
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git tag -f nightly
+          git push -f origin nightly
+
+      - name: Publish nightly release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: Nightly
+          prerelease: true
+          body: |
+            Latest build of `main`, updated on every push.
+
+            Commit: ${{ github.sha }}
+          files: build/*
+          fail_on_unmatched_files: true
 
       - name: Publish release
         if: startsWith(github.ref, 'refs/tags/')
